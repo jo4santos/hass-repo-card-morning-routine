@@ -209,16 +209,24 @@ class MorningRoutineCard extends LitElement {
     }
 
     _renderActivity(child, activity) {
+        // Get fresh state every render
+        const entity = this._hass.states[child.entity];
+        const liveActivities = entity?.attributes?.activities || [];
+        const liveActivity = liveActivities.find(a => a.id === activity.id) || activity;
+        const isCompleted = liveActivity.completed || false;
+
         return html`
             <div
-                class="activity-item ${activity.completed ? 'completed' : 'pending'}"
+                class="activity-item ${isCompleted ? 'completed' : 'pending'}"
                 @click=${() => this._handleActivityClick(child, activity)}
+                data-activity-id="${activity.id}"
+                data-completed="${isCompleted}"
             >
                 <div class="activity-icon">
                     <ha-icon icon="${activity.icon || 'mdi:check-circle-outline'}"></ha-icon>
                 </div>
                 <div class="activity-name">${activity.name}</div>
-                ${activity.completed ? html`
+                ${isCompleted ? html`
                     <div class="check-mark">
                         <ha-icon icon="mdi:check-circle"></ha-icon>
                     </div>
@@ -968,7 +976,7 @@ window.customCards.push({
 });
 
 console.info(
-    `%c MORNING-ROUTINE-CARD %c 1.2.0 `,
+    `%c MORNING-ROUTINE-CARD %c 1.3.0 `,
     "color: white; font-weight: bold; background: #4CAF50",
     "color: white; font-weight: bold; background: #2196F3"
 );
