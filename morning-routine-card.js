@@ -60,12 +60,21 @@ class MorningRoutineCard extends LitElement {
         this._config.layout = config.layout || "horizontal";
         this._config.show_progress = config.show_progress !== false;
         this._config.compact = config.compact || false;
+
+        console.log("Morning Routine Card configured for entities:", config.children.map(c => c.entity));
+    }
+
+    shouldUpdate(changedProps) {
+        // Always update - we need to catch all state changes
+        return true;
     }
 
     set hass(hass) {
         this._hass = hass;
-        // Always update - let LitElement handle optimization
+        // Force update on every hass change
         this._updateChildrenData();
+        // Trigger explicit re-render
+        this.requestUpdate();
     }
 
     _updateChildrenData() {
@@ -209,11 +218,23 @@ class MorningRoutineCard extends LitElement {
     }
 
     _renderActivity(child, activity) {
-        // Get fresh state every render
-        const entity = this._hass.states[child.entity];
-        const liveActivities = entity?.attributes?.activities || [];
-        const liveActivity = liveActivities.find(a => a.id === activity.id) || activity;
-        const isCompleted = liveActivity.completed || false;
+        // Get fresh state every render directly from hass
+        const entityId = child.entity;
+        const entity = this._hass?.states?.[entityId];
+
+        if (!entity) {
+            console.warn("Entity not found:", entityId);
+            return html`<div class="activity-item error">Entity not found</div>`;
+        }
+
+        const liveActivities = entity.attributes?.activities || [];
+        const liveActivity = liveActivities.find(a => a.id === activity.id);
+        const isCompleted = liveActivity ? liveActivity.completed : false;
+
+        // Debug log
+        if (activity.id === 'breakfast') {
+            console.log(`[Activity Debug] ${activity.id}: completed=${isCompleted}, liveActivity:`, liveActivity);
+        }
 
         return html`
             <div
@@ -976,7 +997,7 @@ window.customCards.push({
 });
 
 console.info(
-    `%c MORNING-ROUTINE-CARD %c 1.3.0 `,
+    `%c MORNING-ROUTINE-CARD %c 1.4.0 `,
     "color: white; font-weight: bold; background: #4CAF50",
     "color: white; font-weight: bold; background: #2196F3"
 );
