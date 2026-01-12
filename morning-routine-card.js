@@ -653,15 +653,16 @@ class MorningRoutineCard extends LitElement {
                     </div>
                     <div class="reward-modal-content">
                         ${hasVideo ? html`
-                            <div class="video-container">
-                                <iframe
-                                    width="100%"
-                                    height="315"
-                                    src="https://www.youtube.com/embed/${this._rewardChild.reward_video_id}?autoplay=1"
-                                    frameborder="0"
-                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                    allowfullscreen>
-                                </iframe>
+                            <div class="video-reward-container">
+                                <ha-icon icon="mdi:youtube" class="youtube-icon"></ha-icon>
+                                <p class="video-message">🎬 A tua recompensa está pronta!</p>
+                                <mwc-button
+                                    raised
+                                    class="youtube-button"
+                                    @click=${() => window.open(`https://www.youtube.com/watch?v=${this._rewardChild.reward_video_id}`, '_blank')}>
+                                    <ha-icon icon="mdi:play-circle" slot="icon"></ha-icon>
+                                    Ver Vídeo no YouTube
+                                </mwc-button>
                             </div>
                         ` : hasAIImage ? html`
                             <img src="/local/morning_routine_photos/${this._getFilename(this._rewardChild.reward_image)}"
@@ -1015,22 +1016,45 @@ class MorningRoutineCard extends LitElement {
             margin-bottom: 16px;
         }
 
-        .video-container {
-            position: relative;
-            width: 100%;
-            padding-bottom: 56.25%; /* 16:9 aspect ratio */
+        .video-reward-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 40px;
+            background: linear-gradient(135deg, #FF0000 0%, #CC0000 100%);
+            border-radius: 12px;
             margin-bottom: 16px;
-            border-radius: 8px;
-            overflow: hidden;
+            min-height: 250px;
         }
 
-        .video-container iframe {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            border-radius: 8px;
+        .youtube-icon {
+            font-size: 100px;
+            color: white;
+            margin-bottom: 20px;
+            animation: bounce 1s infinite;
+        }
+
+        .video-message {
+            font-size: 20px;
+            font-weight: bold;
+            color: white;
+            margin: 0 0 24px 0;
+            text-align: center;
+        }
+
+        .youtube-button {
+            --mdc-theme-primary: white;
+            --mdc-theme-on-primary: #FF0000;
+            background: white;
+            color: #FF0000;
+            font-size: 18px;
+            padding: 12px 24px;
+        }
+
+        .youtube-button ha-icon {
+            width: 28px;
+            height: 28px;
         }
 
         .reward-quote-container {
@@ -1193,7 +1217,7 @@ window.customCards.push({
 });
 
 console.info(
-    `%c MORNING-ROUTINE-CARD %c 2.1.0 - Single Row Layout `,
+    `%c MORNING-ROUTINE-CARD %c 2.1.1 - YouTube Link Fix `,
     "color: white; font-weight: bold; background: #4CAF50",
     "color: white; font-weight: bold; background: #2196F3"
 );
