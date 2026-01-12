@@ -31,6 +31,7 @@ class MorningRoutineCard extends LitElement {
         this._mediaRecorder = null;
         this._audioChunks = [];
         this._recordingInterval = null;
+        this._updateDebounceTimer = null;
 
         // Fun quotes for rewards (Portuguese from Portugal)
         this._rewardQuotes = [
@@ -71,10 +72,20 @@ class MorningRoutineCard extends LitElement {
 
     set hass(hass) {
         this._hass = hass;
-        // Force update on every hass change
+
+        // Immediate update for progress circle
         this._updateChildrenData();
-        // Trigger explicit re-render
-        this.requestUpdate();
+
+        // Debounced update to catch attribute changes (race condition fix)
+        if (this._updateDebounceTimer) {
+            clearTimeout(this._updateDebounceTimer);
+        }
+
+        this._updateDebounceTimer = setTimeout(() => {
+            console.log("[Debounced Update] Refreshing activities with latest attributes");
+            this._updateChildrenData();
+            this.requestUpdate();
+        }, 150);
     }
 
     _updateChildrenData() {
@@ -231,9 +242,9 @@ class MorningRoutineCard extends LitElement {
         const liveActivity = liveActivities.find(a => a.id === activity.id);
         const isCompleted = liveActivity ? liveActivity.completed : false;
 
-        // Debug log
+        // Debug log with timestamp
         if (activity.id === 'breakfast') {
-            console.log(`[Activity Debug] ${activity.id}: completed=${isCompleted}, liveActivity:`, liveActivity);
+            console.log(`[Activity Debug ${new Date().toISOString()}] ${activity.id}: completed=${isCompleted}, last_updated=${entity.last_updated}`);
         }
 
         return html`
@@ -997,7 +1008,7 @@ window.customCards.push({
 });
 
 console.info(
-    `%c MORNING-ROUTINE-CARD %c 1.4.0 `,
+    `%c MORNING-ROUTINE-CARD %c 1.5.0 - Race Condition Fix `,
     "color: white; font-weight: bold; background: #4CAF50",
     "color: white; font-weight: bold; background: #2196F3"
 );
