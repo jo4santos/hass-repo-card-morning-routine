@@ -713,15 +713,12 @@ class MorningRoutineCard extends LitElement {
                     <div class="reward-modal-content">
                         ${hasVideo ? html`
                             <div class="video-reward-container">
-                                <ha-icon icon="mdi:youtube" class="youtube-icon"></ha-icon>
-                                <p class="video-message">🎬 A tua recompensa está pronta!</p>
-                                <mwc-button
-                                    raised
-                                    class="youtube-button"
-                                    @click=${() => window.open(`https://www.youtube.com/watch?v=${this._rewardChild.reward_video_id}`, '_blank')}>
-                                    <ha-icon icon="mdi:play-circle" slot="icon"></ha-icon>
-                                    Ver Vídeo no YouTube
-                                </mwc-button>
+                                <iframe
+                                    src="https://www.youtube.com/watch?v=${this._rewardChild.reward_video_id}"
+                                    frameborder="0"
+                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                    allowfullscreen
+                                ></iframe>
                             </div>
                         ` : hasAIImage ? html`
                             <img src="/local/morning_routine_photos/${this._getFilename(this._rewardChild.reward_image)}"
@@ -996,10 +993,20 @@ class MorningRoutineCard extends LitElement {
             z-index: 1000;
         }
 
-        .camera-modal, .reward-modal {
+        .camera-modal {
             background: var(--card-background-color);
             border-radius: 12px;
             max-width: 600px;
+            width: 90%;
+            max-height: 90vh;
+            overflow: auto;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .reward-modal {
+            background: var(--card-background-color);
+            border-radius: 12px;
+            max-width: 900px;
             width: 90%;
             max-height: 90vh;
             overflow: auto;
@@ -1123,44 +1130,18 @@ class MorningRoutineCard extends LitElement {
         }
 
         .video-reward-container {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            padding: 40px;
-            background: linear-gradient(135deg, #FF0000 0%, #CC0000 100%);
+            width: 100%;
+            height: 500px;
             border-radius: 12px;
+            overflow: hidden;
             margin-bottom: 16px;
-            min-height: 250px;
+            background: #000;
         }
 
-        .youtube-icon {
-            font-size: 100px;
-            color: white;
-            margin-bottom: 20px;
-            animation: bounce 1s infinite;
-        }
-
-        .video-message {
-            font-size: 20px;
-            font-weight: bold;
-            color: white;
-            margin: 0 0 24px 0;
-            text-align: center;
-        }
-
-        .youtube-button {
-            --mdc-theme-primary: white;
-            --mdc-theme-on-primary: #FF0000;
-            background: white;
-            color: #FF0000;
-            font-size: 18px;
-            padding: 12px 24px;
-        }
-
-        .youtube-button ha-icon {
-            width: 28px;
-            height: 28px;
+        .video-reward-container iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
         }
 
         .reward-quote-container {
@@ -1323,7 +1304,7 @@ window.customCards.push({
 });
 
 console.info(
-    `%c MORNING-ROUTINE-CARD %c 2.2.1 - Single Timer & Red Activities `,
+    `%c MORNING-ROUTINE-CARD %c 2.3.0 - YouTube Iframe Embed `,
     "color: white; font-weight: bold; background: #4CAF50",
     "color: white; font-weight: bold; background: #2196F3"
 );
