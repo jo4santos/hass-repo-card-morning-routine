@@ -7,6 +7,7 @@ class MorningRoutineCard extends LitElement {
         _children: { type: Array, state: true },
         _showCamera: { type: Boolean, state: true },
         _showAudioRecorder: { type: Boolean, state: true },
+        _showPhoto: { type: Boolean, state: true },
         _currentChild: { type: String, state: true },
         _currentActivity: { type: String, state: true },
         _showReward: { type: Boolean, state: true },
@@ -14,6 +15,7 @@ class MorningRoutineCard extends LitElement {
         _currentRewardQuote: { type: String, state: true },
         _isRecording: { type: Boolean, state: true },
         _recordingTime: { type: Number, state: true },
+        _photoChild: { type: Object, state: true },
     };
 
     constructor() {
@@ -21,10 +23,12 @@ class MorningRoutineCard extends LitElement {
         this._children = [];
         this._showCamera = false;
         this._showAudioRecorder = false;
+        this._showPhoto = false;
         this._currentChild = null;
         this._currentActivity = null;
         this._showReward = false;
         this._rewardChild = null;
+        this._photoChild = null;
         this._currentRewardQuote = null;
         this._isRecording = false;
         this._recordingTime = 0;
@@ -153,6 +157,7 @@ class MorningRoutineCard extends LitElement {
             </ha-card>
             ${this._renderCameraModal()}
             ${this._renderAudioRecorderModal()}
+            ${this._renderPhotoModal()}
             ${this._renderRewardModal()}
         `;
     }
@@ -170,11 +175,8 @@ class MorningRoutineCard extends LitElement {
         const hasPhoto = child.photo_path;
         const hasAudio = child.audio_recording;
 
-        // Build style with photo background if available
+        // Build style without photo background
         let sectionStyle = `--child-color: ${child.color || '#4CAF50'};`;
-        if (hasPhoto) {
-            sectionStyle += ` background-image: linear-gradient(rgba(255, 255, 255, 0.85), rgba(255, 255, 255, 0.85)), url('/local/morning_routine_photos/${this._getFilename(child.photo_path)}'); background-size: cover; background-position: center;`;
-        }
 
         return html`
             <div class="child-section" style="${sectionStyle}">
@@ -185,6 +187,14 @@ class MorningRoutineCard extends LitElement {
                 </div>
 
                 <div class="button-container">
+                    ${hasPhoto ? html`
+                        <div class="photo-thumbnail" @click=${() => this._showPhotoModal(child)}>
+                            <img src="/local/morning_routine_photos/${this._getFilename(child.photo_path)}" alt="Foto de ${child.name}">
+                            <div class="photo-overlay">
+                                <ha-icon icon="mdi:magnify-plus"></ha-icon>
+                            </div>
+                        </div>
+                    ` : ''}
                     ${allComplete ? html`
                         <mwc-button
                             class="reward-button"
@@ -594,6 +604,37 @@ class MorningRoutineCard extends LitElement {
         this._currentRewardQuote = null;
     }
 
+    _showPhotoModal(child) {
+        this._photoChild = child;
+        this._showPhoto = true;
+    }
+
+    _closePhotoModal() {
+        this._showPhoto = false;
+        this._photoChild = null;
+    }
+
+    _renderPhotoModal() {
+        if (!this._showPhoto || !this._photoChild) return html``;
+
+        return html`
+            <div class="modal-overlay" @click=${this._closePhotoModal}>
+                <div class="photo-modal" @click=${(e) => e.stopPropagation()}>
+                    <div class="photo-modal-header">
+                        <h2>📸 Foto - ${this._photoChild.name}</h2>
+                        <mwc-icon-button @click=${this._closePhotoModal}>
+                            <ha-icon icon="mdi:close"></ha-icon>
+                        </mwc-icon-button>
+                    </div>
+                    <div class="photo-modal-content">
+                        <img src="/local/morning_routine_photos/${this._getFilename(this._photoChild.photo_path)}"
+                             alt="Foto de ${this._photoChild.name}" />
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
     _renderRewardModal() {
         if (!this._showReward || !this._rewardChild) return html``;
 
@@ -986,6 +1027,91 @@ class MorningRoutineCard extends LitElement {
             color: var(--primary-text-color);
             margin: 0;
             text-align: center;
+        }
+
+        /* Photo Thumbnail */
+        .photo-thumbnail {
+            position: relative;
+            width: 120px;
+            height: 120px;
+            border-radius: 8px;
+            overflow: hidden;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+            transition: transform 0.2s, box-shadow 0.2s;
+            margin-bottom: 12px;
+        }
+
+        .photo-thumbnail:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        .photo-thumbnail img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .photo-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .photo-thumbnail:hover .photo-overlay {
+            opacity: 1;
+        }
+
+        .photo-overlay ha-icon {
+            color: white;
+            --mdc-icon-size: 40px;
+        }
+
+        /* Photo Modal */
+        .photo-modal {
+            background: var(--card-background-color);
+            border-radius: 8px;
+            max-width: 90vw;
+            max-height: 90vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .photo-modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px;
+            border-bottom: 1px solid var(--divider-color);
+        }
+
+        .photo-modal-header h2 {
+            margin: 0;
+            font-size: 20px;
+        }
+
+        .photo-modal-content {
+            padding: 16px;
+            overflow: auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .photo-modal-content img {
+            max-width: 100%;
+            max-height: 70vh;
+            border-radius: 8px;
         }
     `;
 
