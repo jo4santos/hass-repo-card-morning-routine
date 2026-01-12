@@ -136,6 +136,7 @@ class MorningRoutineCard extends LitElement {
                 photo_path: entity.attributes.photo_path,
                 audio_recording: entity.attributes.audio_recording,
                 reward_image: entity.attributes.reward_image,
+                reward_video_id: entity.attributes.reward_video_id,
                 all_complete: entity.attributes.all_complete || false,
                 error: false,
             };
@@ -638,6 +639,7 @@ class MorningRoutineCard extends LitElement {
     _renderRewardModal() {
         if (!this._showReward || !this._rewardChild) return html``;
 
+        const hasVideo = this._rewardChild.reward_video_id;
         const hasAIImage = this._rewardChild.reward_image;
 
         return html`
@@ -650,7 +652,18 @@ class MorningRoutineCard extends LitElement {
                         </mwc-icon-button>
                     </div>
                     <div class="reward-modal-content">
-                        ${hasAIImage ? html`
+                        ${hasVideo ? html`
+                            <div class="video-container">
+                                <iframe
+                                    width="100%"
+                                    height="315"
+                                    src="https://www.youtube.com/embed/${this._rewardChild.reward_video_id}?autoplay=1"
+                                    frameborder="0"
+                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                    allowfullscreen>
+                                </iframe>
+                            </div>
+                        ` : hasAIImage ? html`
                             <img src="/local/morning_routine_photos/${this._getFilename(this._rewardChild.reward_image)}"
                                  alt="Imagem de Recompensa" />
                         ` : html`
@@ -992,6 +1005,24 @@ class MorningRoutineCard extends LitElement {
             margin-bottom: 16px;
         }
 
+        .video-container {
+            position: relative;
+            width: 100%;
+            padding-bottom: 56.25%; /* 16:9 aspect ratio */
+            margin-bottom: 16px;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .video-container iframe {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border-radius: 8px;
+        }
+
         .reward-quote-container {
             display: flex;
             flex-direction: column;
@@ -1152,7 +1183,7 @@ window.customCards.push({
 });
 
 console.info(
-    `%c MORNING-ROUTINE-CARD %c 1.5.0 - Race Condition Fix `,
+    `%c MORNING-ROUTINE-CARD %c 2.0.0 - YouTube Video Rewards `,
     "color: white; font-weight: bold; background: #4CAF50",
     "color: white; font-weight: bold; background: #2196F3"
 );
