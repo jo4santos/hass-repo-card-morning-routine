@@ -926,24 +926,26 @@ class MorningRoutineCard extends LitElement {
 
         .button-container mwc-button {
             width: 100%;
+            --mdc-shape-small: 8px;
+            --mdc-button-horizontal-padding: 16px;
+        }
+
+        .button-container mwc-button ha-icon {
+            --mdc-icon-size: 24px;
+            width: 24px;
+            height: 24px;
+            margin-right: 8px;
         }
 
         .reward-button {
             --mdc-theme-primary: #FF9800;
             --mdc-theme-on-primary: white;
-            background: linear-gradient(135deg, #FFD54F 0%, #FF9800 100%);
             animation: pulse 2s infinite;
         }
 
         .audio-button {
             --mdc-theme-primary: #4CAF50;
             --mdc-theme-on-primary: white;
-            background: linear-gradient(135deg, #81C784 0%, #4CAF50 100%);
-        }
-
-        .button-container ha-icon {
-            width: 28px;
-            height: 28px;
         }
 
         @keyframes pulse {
@@ -1094,27 +1096,32 @@ class MorningRoutineCard extends LitElement {
             border-top: 1px solid var(--divider-color);
         }
 
+        .camera-controls mwc-button {
+            --mdc-shape-small: 8px;
+            --mdc-button-horizontal-padding: 24px;
+            min-width: 100px;
+        }
+
         .camera-controls mwc-button ha-icon {
-            --mdc-icon-size: 64px !important;
-            width: 64px !important;
-            height: 64px !important;
+            --mdc-icon-size: 24px;
+            width: 24px;
+            height: 24px;
+            margin-right: 8px;
         }
 
         .capture-button {
             --mdc-theme-primary: #2196F3;
             --mdc-theme-on-primary: white;
-            background: linear-gradient(135deg, #64B5F6 0%, #2196F3 100%) !important;
         }
 
         .record-button {
             --mdc-theme-primary: #F44336;
             --mdc-theme-on-primary: white;
-            background: linear-gradient(135deg, #EF5350 0%, #F44336 100%) !important;
         }
 
         .cancel-button {
-            --mdc-theme-primary: #757575;
-            --mdc-theme-on-primary: white;
+            --mdc-theme-primary: var(--secondary-text-color);
+            --mdc-theme-on-primary: var(--primary-text-color);
         }
 
         .reward-modal-content {
@@ -1304,7 +1311,7 @@ window.customCards.push({
 });
 
 console.info(
-    `%c MORNING-ROUTINE-CARD %c 2.3.0 - YouTube Iframe Embed `,
+    `%c MORNING-ROUTINE-CARD %c 2.3.1 - Improved Button Styling `,
     "color: white; font-weight: bold; background: #4CAF50",
     "color: white; font-weight: bold; background: #2196F3"
 );
