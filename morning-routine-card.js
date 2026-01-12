@@ -192,6 +192,7 @@ class MorningRoutineCard extends LitElement {
         return html`
             <ha-card>
                 <div class="card-content">
+                    ${this._renderTimer()}
                     <div class="children-container ${this._config.layout}">
                         ${this._children.map(child => this._renderChild(child))}
                     </div>
@@ -201,6 +202,23 @@ class MorningRoutineCard extends LitElement {
             ${this._renderAudioRecorderModal()}
             ${this._renderPhotoModal()}
             ${this._renderRewardModal()}
+        `;
+    }
+
+    _renderTimer() {
+        const timeData = this._getTimeUntilSchool();
+        const timerColor = this._getTimerColor(timeData.total);
+
+        return html`
+            <div class="global-timer" style="background-color: ${timerColor}">
+                ${timeData.total > 0 ? html`
+                    <ha-icon icon="mdi:clock-outline"></ha-icon>
+                    <span class="global-timer-text">Tempo até à escola: ${timeData.minutes}:${timeData.seconds.toString().padStart(2, '0')}</span>
+                ` : html`
+                    <ha-icon icon="mdi:school"></ha-icon>
+                    <span class="global-timer-text">Hora da escola!</span>
+                `}
+            </div>
         `;
     }
 
@@ -256,7 +274,6 @@ class MorningRoutineCard extends LitElement {
                         </mwc-button>
                     ` : ''}
                     <mwc-button
-                        class="${allComplete ? 'reset-button-complete' : 'reset-button-incomplete'}"
                         @click=${() => this._resetChild(child)}
                         dense>
                         <ha-icon icon="mdi:restart" slot="icon"></ha-icon>
@@ -268,25 +285,9 @@ class MorningRoutineCard extends LitElement {
     }
 
     _renderHeader(child) {
-        const timeData = this._getTimeUntilSchool();
-        const timerColor = this._getTimerColor(timeData.total);
-
         return html`
             <div class="child-header">
-                <div class="header-left">
-                    <h2>${child.name}</h2>
-                    ${timeData.total > 0 ? html`
-                        <div class="timer" style="color: ${timerColor}">
-                            <ha-icon icon="mdi:clock-outline"></ha-icon>
-                            <span class="timer-text">${timeData.minutes}:${timeData.seconds.toString().padStart(2, '0')}</span>
-                        </div>
-                    ` : html`
-                        <div class="timer" style="color: #F44336">
-                            <ha-icon icon="mdi:school"></ha-icon>
-                            <span class="timer-text">Hora da escola!</span>
-                        </div>
-                    `}
-                </div>
+                <h2>${child.name}</h2>
                 <div class="progress-container">
                     <svg class="progress-ring" width="60" height="60">
                         <circle
@@ -749,6 +750,29 @@ class MorningRoutineCard extends LitElement {
             padding: 16px;
         }
 
+        .global-timer {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            padding: 16px;
+            border-radius: 12px;
+            margin-bottom: 16px;
+            color: white;
+            font-size: 24px;
+            font-weight: bold;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .global-timer ha-icon {
+            width: 32px;
+            height: 32px;
+        }
+
+        .global-timer-text {
+            font-family: monospace;
+        }
+
         .children-container {
             display: grid;
             gap: 16px;
@@ -782,33 +806,10 @@ class MorningRoutineCard extends LitElement {
             margin-bottom: 16px;
         }
 
-        .header-left {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-
         .child-header h2 {
             margin: 0;
             font-size: 24px;
             color: var(--child-color);
-        }
-
-        .timer {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            font-size: 18px;
-            font-weight: bold;
-        }
-
-        .timer ha-icon {
-            width: 24px;
-            height: 24px;
-        }
-
-        .timer-text {
-            font-family: monospace;
         }
 
         .progress-container {
@@ -869,7 +870,8 @@ class MorningRoutineCard extends LitElement {
         }
 
         .activity-item.pending {
-            background: #fff;
+            background: linear-gradient(135deg, #FFCDD2 0%, #EF9A9A 100%);
+            border-color: #F44336;
         }
 
         .activity-item.completed {
@@ -1085,10 +1087,10 @@ class MorningRoutineCard extends LitElement {
             border-top: 1px solid var(--divider-color);
         }
 
-        .camera-controls ha-icon {
-            --mdc-icon-size: 64px;
-            width: 64px;
-            height: 64px;
+        .camera-controls mwc-button ha-icon {
+            --mdc-icon-size: 64px !important;
+            width: 64px !important;
+            height: 64px !important;
         }
 
         .capture-button {
@@ -1105,17 +1107,6 @@ class MorningRoutineCard extends LitElement {
 
         .cancel-button {
             --mdc-theme-primary: #757575;
-            --mdc-theme-on-primary: white;
-        }
-
-        .reset-button-incomplete {
-            --mdc-theme-primary: #F44336;
-            --mdc-theme-on-primary: white;
-            background: linear-gradient(135deg, #EF5350 0%, #F44336 100%) !important;
-        }
-
-        .reset-button-complete {
-            --mdc-theme-primary: #4CAF50;
             --mdc-theme-on-primary: white;
         }
 
@@ -1332,7 +1323,7 @@ window.customCards.push({
 });
 
 console.info(
-    `%c MORNING-ROUTINE-CARD %c 2.2.0 - Timer & Better Buttons `,
+    `%c MORNING-ROUTINE-CARD %c 2.2.1 - Single Timer & Red Activities `,
     "color: white; font-weight: bold; background: #4CAF50",
     "color: white; font-weight: bold; background: #2196F3"
 );
