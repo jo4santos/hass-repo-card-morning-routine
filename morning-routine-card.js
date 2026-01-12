@@ -753,14 +753,14 @@ class MorningRoutineCard extends LitElement {
         }
 
         .activities-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
-            gap: 12px;
+            display: flex;
+            flex-direction: row;
+            gap: 8px;
+            width: 100%;
         }
 
         .activities-grid.compact {
-            grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
-            gap: 8px;
+            gap: 6px;
         }
 
         .activity-item {
@@ -769,13 +769,15 @@ class MorningRoutineCard extends LitElement {
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            padding: 16px 8px;
-            border-radius: 8px;
+            padding: 20px 12px;
+            border-radius: 12px;
             background: var(--card-background-color);
-            border: 2px solid #e0e0e0;
+            border: 3px solid #e0e0e0;
             cursor: pointer;
             transition: all 0.3s ease;
-            min-height: 100px;
+            min-height: 140px;
+            flex: 1;
+            min-width: 0;
         }
 
         .activity-item:hover:not(.completed) {
@@ -795,14 +797,14 @@ class MorningRoutineCard extends LitElement {
         }
 
         .activity-icon {
-            font-size: 48px;
-            margin-bottom: 8px;
+            font-size: 64px;
+            margin-bottom: 12px;
             color: var(--primary-text-color);
         }
 
         .activity-icon ha-icon {
-            width: 48px;
-            height: 48px;
+            width: 64px;
+            height: 64px;
         }
 
         .activity-item.completed .activity-icon {
@@ -810,17 +812,25 @@ class MorningRoutineCard extends LitElement {
         }
 
         .activity-name {
-            font-size: 13px;
+            font-size: 16px;
+            font-weight: 600;
             text-align: center;
-            line-height: 1.2;
+            line-height: 1.3;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            hyphens: auto;
         }
 
         .check-mark {
             position: absolute;
-            top: 4px;
-            right: 4px;
+            top: 8px;
+            right: 8px;
             color: #2e7d32;
-            font-size: 24px;
+        }
+
+        .check-mark ha-icon {
+            width: 32px;
+            height: 32px;
         }
 
         .button-container {
@@ -1183,7 +1193,7 @@ window.customCards.push({
 });
 
 console.info(
-    `%c MORNING-ROUTINE-CARD %c 2.0.0 - YouTube Video Rewards `,
+    `%c MORNING-ROUTINE-CARD %c 2.1.0 - Single Row Layout `,
     "color: white; font-weight: bold; background: #4CAF50",
     "color: white; font-weight: bold; background: #2196F3"
 );
