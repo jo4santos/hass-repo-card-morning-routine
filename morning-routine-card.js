@@ -714,7 +714,7 @@ class MorningRoutineCard extends LitElement {
                         ${hasVideo ? html`
                             <div class="video-reward-container">
                                 <iframe
-                                    src="https://www.youtube.com/watch?v=${this._rewardChild.reward_video_id}"
+                                    src="https://www.youtube.com/embed/${this._rewardChild.reward_video_id}?autoplay=1"
                                     frameborder="0"
                                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                                     allowfullscreen
@@ -926,7 +926,7 @@ class MorningRoutineCard extends LitElement {
 
         .button-container mwc-button {
             width: 100%;
-            --mdc-shape-small: 8px;
+            --mdc-shape-small: 4px;
             --mdc-button-horizontal-padding: 16px;
         }
 
@@ -1097,7 +1097,7 @@ class MorningRoutineCard extends LitElement {
         }
 
         .camera-controls mwc-button {
-            --mdc-shape-small: 8px;
+            --mdc-shape-small: 4px;
             --mdc-button-horizontal-padding: 24px;
             min-width: 100px;
         }
@@ -1121,7 +1121,6 @@ class MorningRoutineCard extends LitElement {
 
         .cancel-button {
             --mdc-theme-primary: var(--secondary-text-color);
-            --mdc-theme-on-primary: var(--primary-text-color);
         }
 
         .reward-modal-content {
@@ -1311,7 +1310,7 @@ window.customCards.push({
 });
 
 console.info(
-    `%c MORNING-ROUTINE-CARD %c 2.3.1 - Improved Button Styling `,
+    `%c MORNING-ROUTINE-CARD %c 2.3.2 - YouTube Embed Fix & Material Design Buttons `,
     "color: white; font-weight: bold; background: #4CAF50",
     "color: white; font-weight: bold; background: #2196F3"
 );
