@@ -16,6 +16,7 @@ class MorningRoutineCard extends LitElement {
         _isRecording: { type: Boolean, state: true },
         _recordingTime: { type: Number, state: true },
         _photoChild: { type: Object, state: true },
+        _currentTime: { type: Number, state: true },
     };
 
     constructor() {
@@ -35,6 +36,12 @@ class MorningRoutineCard extends LitElement {
         this._mediaRecorder = null;
         this._audioChunks = [];
         this._recordingInterval = null;
+        this._currentTime = Date.now();
+
+        // Update timer every second
+        this._timerInterval = setInterval(() => {
+            this._currentTime = Date.now();
+        }, 1000);
 
         // Fun quotes for rewards (Portuguese from Portugal)
         this._rewardQuotes = [
@@ -66,6 +73,40 @@ class MorningRoutineCard extends LitElement {
         this._config.compact = config.compact || false;
 
         console.log("Morning Routine Card configured for entities:", config.children.map(c => c.entity));
+    }
+
+    disconnectedCallback() {
+        super.disconnectedCallback();
+        if (this._timerInterval) {
+            clearInterval(this._timerInterval);
+        }
+    }
+
+    _getTimeUntilSchool() {
+        const now = new Date();
+        const targetTime = new Date();
+        targetTime.setHours(8, 50, 0, 0);
+
+        // If it's past school time, return 0
+        if (now >= targetTime) {
+            return { minutes: 0, seconds: 0, total: 0 };
+        }
+
+        const diff = targetTime - now;
+        const totalSeconds = Math.floor(diff / 1000);
+        const minutes = Math.floor(totalSeconds / 60);
+        const seconds = totalSeconds % 60;
+
+        return { minutes, seconds, total: totalSeconds };
+    }
+
+    _getTimerColor(totalSeconds) {
+        // Green: more than 30 minutes (1800s)
+        // Yellow: 15-30 minutes (900-1800s)
+        // Red: less than 15 minutes (900s)
+        if (totalSeconds > 1800) return '#4CAF50'; // Green
+        if (totalSeconds > 900) return '#FFC107'; // Yellow
+        return '#F44336'; // Red
     }
 
     shouldUpdate(changedProps) {
@@ -215,6 +256,7 @@ class MorningRoutineCard extends LitElement {
                         </mwc-button>
                     ` : ''}
                     <mwc-button
+                        class="${allComplete ? 'reset-button-complete' : 'reset-button-incomplete'}"
                         @click=${() => this._resetChild(child)}
                         dense>
                         <ha-icon icon="mdi:restart" slot="icon"></ha-icon>
@@ -226,9 +268,25 @@ class MorningRoutineCard extends LitElement {
     }
 
     _renderHeader(child) {
+        const timeData = this._getTimeUntilSchool();
+        const timerColor = this._getTimerColor(timeData.total);
+
         return html`
             <div class="child-header">
-                <h2>${child.name}</h2>
+                <div class="header-left">
+                    <h2>${child.name}</h2>
+                    ${timeData.total > 0 ? html`
+                        <div class="timer" style="color: ${timerColor}">
+                            <ha-icon icon="mdi:clock-outline"></ha-icon>
+                            <span class="timer-text">${timeData.minutes}:${timeData.seconds.toString().padStart(2, '0')}</span>
+                        </div>
+                    ` : html`
+                        <div class="timer" style="color: #F44336">
+                            <ha-icon icon="mdi:school"></ha-icon>
+                            <span class="timer-text">Hora da escola!</span>
+                        </div>
+                    `}
+                </div>
                 <div class="progress-container">
                     <svg class="progress-ring" width="60" height="60">
                         <circle
@@ -343,11 +401,11 @@ class MorningRoutineCard extends LitElement {
                         <canvas id="camera-canvas" style="display:none"></canvas>
                     </div>
                     <div class="camera-controls">
-                        <mwc-button raised @click=${this._capturePhoto}>
+                        <mwc-button raised class="capture-button" @click=${this._capturePhoto}>
                             <ha-icon icon="mdi:camera" slot="icon"></ha-icon>
                             Capturar
                         </mwc-button>
-                        <mwc-button @click=${this._closeCamera}>
+                        <mwc-button class="cancel-button" @click=${this._closeCamera}>
                             Cancelar
                         </mwc-button>
                     </div>
@@ -404,17 +462,17 @@ class MorningRoutineCard extends LitElement {
                     </div>
                     <div class="camera-controls">
                         ${!this._isRecording ? html`
-                            <mwc-button raised @click=${this._startRecording}>
+                            <mwc-button raised class="record-button" @click=${this._startRecording}>
                                 <ha-icon icon="mdi:record" slot="icon"></ha-icon>
                                 Começar a Gravar
                             </mwc-button>
                         ` : html`
-                            <mwc-button raised @click=${this._stopRecording}>
+                            <mwc-button raised class="capture-button" @click=${this._stopRecording}>
                                 <ha-icon icon="mdi:stop" slot="icon"></ha-icon>
                                 Parar e Guardar
                             </mwc-button>
                         `}
-                        <mwc-button @click=${this._closeAudioRecorder}>
+                        <mwc-button class="cancel-button" @click=${this._closeAudioRecorder}>
                             Cancelar
                         </mwc-button>
                     </div>
@@ -724,10 +782,33 @@ class MorningRoutineCard extends LitElement {
             margin-bottom: 16px;
         }
 
+        .header-left {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
         .child-header h2 {
             margin: 0;
             font-size: 24px;
             color: var(--child-color);
+        }
+
+        .timer {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        .timer ha-icon {
+            width: 24px;
+            height: 24px;
+        }
+
+        .timer-text {
+            font-family: monospace;
         }
 
         .progress-container {
@@ -1004,6 +1085,40 @@ class MorningRoutineCard extends LitElement {
             border-top: 1px solid var(--divider-color);
         }
 
+        .camera-controls ha-icon {
+            --mdc-icon-size: 64px;
+            width: 64px;
+            height: 64px;
+        }
+
+        .capture-button {
+            --mdc-theme-primary: #2196F3;
+            --mdc-theme-on-primary: white;
+            background: linear-gradient(135deg, #64B5F6 0%, #2196F3 100%) !important;
+        }
+
+        .record-button {
+            --mdc-theme-primary: #F44336;
+            --mdc-theme-on-primary: white;
+            background: linear-gradient(135deg, #EF5350 0%, #F44336 100%) !important;
+        }
+
+        .cancel-button {
+            --mdc-theme-primary: #757575;
+            --mdc-theme-on-primary: white;
+        }
+
+        .reset-button-incomplete {
+            --mdc-theme-primary: #F44336;
+            --mdc-theme-on-primary: white;
+            background: linear-gradient(135deg, #EF5350 0%, #F44336 100%) !important;
+        }
+
+        .reset-button-complete {
+            --mdc-theme-primary: #4CAF50;
+            --mdc-theme-on-primary: white;
+        }
+
         .reward-modal-content {
             padding: 16px;
             text-align: center;
@@ -1217,7 +1332,7 @@ window.customCards.push({
 });
 
 console.info(
-    `%c MORNING-ROUTINE-CARD %c 2.1.1 - YouTube Link Fix `,
+    `%c MORNING-ROUTINE-CARD %c 2.2.0 - Timer & Better Buttons `,
     "color: white; font-weight: bold; background: #4CAF50",
     "color: white; font-weight: bold; background: #2196F3"
 );
