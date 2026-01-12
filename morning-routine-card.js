@@ -31,7 +31,6 @@ class MorningRoutineCard extends LitElement {
         this._mediaRecorder = null;
         this._audioChunks = [];
         this._recordingInterval = null;
-        this._updateDebounceTimer = null;
 
         // Fun quotes for rewards (Portuguese from Portugal)
         this._rewardQuotes = [
@@ -71,21 +70,41 @@ class MorningRoutineCard extends LitElement {
     }
 
     set hass(hass) {
+        const oldHass = this._hass;
         this._hass = hass;
 
-        // Immediate update for progress circle
-        this._updateChildrenData();
+        // Check if any of our entities have actually changed
+        if (oldHass && this._config) {
+            let hasChanges = false;
+            for (const childConfig of this._config.children) {
+                const oldEntity = oldHass.states[childConfig.entity];
+                const newEntity = hass.states[childConfig.entity];
 
-        // Debounced update to catch attribute changes (race condition fix)
-        if (this._updateDebounceTimer) {
-            clearTimeout(this._updateDebounceTimer);
+                if (!oldEntity || !newEntity) {
+                    hasChanges = true;
+                    break;
+                }
+
+                // Check if last_updated changed (indicates state update)
+                if (oldEntity.last_updated !== newEntity.last_updated) {
+                    console.log(`[State Change] ${childConfig.entity} updated at ${newEntity.last_updated}`);
+                    console.log(`[State Change] Activities:`, JSON.stringify(newEntity.attributes?.activities || []));
+                    hasChanges = true;
+                    break;
+                }
+            }
+
+            if (!hasChanges) {
+                // No relevant changes, skip update
+                return;
+            }
         }
 
-        this._updateDebounceTimer = setTimeout(() => {
-            console.log("[Debounced Update] Refreshing activities with latest attributes");
-            this._updateChildrenData();
-            this.requestUpdate();
-        }, 150);
+        // Update children data with latest state
+        this._updateChildrenData();
+
+        // Force a complete re-render
+        this.requestUpdate();
     }
 
     _updateChildrenData() {
@@ -229,7 +248,7 @@ class MorningRoutineCard extends LitElement {
     }
 
     _renderActivity(child, activity) {
-        // Get fresh state every render directly from hass
+        // ALWAYS read fresh state directly from hass, never use cached child data
         const entityId = child.entity;
         const entity = this._hass?.states?.[entityId];
 
@@ -238,14 +257,13 @@ class MorningRoutineCard extends LitElement {
             return html`<div class="activity-item error">Entity not found</div>`;
         }
 
-        const liveActivities = entity.attributes?.activities || [];
-        const liveActivity = liveActivities.find(a => a.id === activity.id);
-        const isCompleted = liveActivity ? liveActivity.completed : false;
+        // Get fresh activities from entity attributes
+        const freshActivities = entity.attributes?.activities || [];
+        const freshActivity = freshActivities.find(a => a.id === activity.id);
+        const isCompleted = freshActivity ? freshActivity.completed : false;
 
-        // Debug log with timestamp
-        if (activity.id === 'breakfast') {
-            console.log(`[Activity Debug ${new Date().toISOString()}] ${activity.id}: completed=${isCompleted}, last_updated=${entity.last_updated}`);
-        }
+        // Log ALL activities during render to track state
+        console.log(`[Render ${new Date().toISOString()}] ${child.name}/${activity.id}: completed=${isCompleted}, last_modified=${freshActivity?.last_modified || 'N/A'}`);
 
         return html`
             <div
