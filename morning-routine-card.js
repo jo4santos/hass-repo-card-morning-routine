@@ -17,6 +17,7 @@ class MorningRoutineCard extends LitElement {
         _recordingTime: { type: Number, state: true },
         _photoChild: { type: Object, state: true },
         _currentTime: { type: Number, state: true },
+        _playingAudioChild: { type: String, state: true },
     };
 
     constructor() {
@@ -37,6 +38,7 @@ class MorningRoutineCard extends LitElement {
         this._audioChunks = [];
         this._recordingInterval = null;
         this._currentTime = Date.now();
+        this._playingAudioChild = null;
 
         // Update timer every second
         this._timerInterval = setInterval(() => {
@@ -265,13 +267,20 @@ class MorningRoutineCard extends LitElement {
                         </mwc-button>
                     ` : ''}
                     ${hasAudio ? html`
-                        <mwc-button
-                            class="audio-button"
-                            raised
-                            @click=${() => this._playAudio(child)}>
-                            <ha-icon icon="mdi:play-circle" slot="icon"></ha-icon>
-                            Ouvir Pequeno-Almoço
-                        </mwc-button>
+                        <div class="audio-player-container">
+                            <div class="audio-player-label">
+                                <ha-icon icon="mdi:microphone"></ha-icon>
+                                <span>Pequeno-Almoço</span>
+                            </div>
+                            <audio
+                                id="audio-player-${child.state.attributes.child}"
+                                controls
+                                @play=${() => this._onAudioPlay(child.state.attributes.child)}
+                                @pause=${() => this._onAudioPause(child.state.attributes.child)}
+                                @ended=${() => this._onAudioPause(child.state.attributes.child)}>
+                                <source src="/local/morning_routine_photos/${this._getFilename(child.audio_recording)}" type="audio/webm">
+                            </audio>
+                        </div>
                     ` : ''}
                     <mwc-button
                         @click=${() => this._resetChild(child)}
@@ -578,14 +587,22 @@ class MorningRoutineCard extends LitElement {
         return `${mins}:${secs.toString().padStart(2, '0')}`;
     }
 
-    _playAudio(child) {
-        if (!child.audio_recording) return;
+    _onAudioPlay(childName) {
+        // If another audio is playing, stop it
+        if (this._playingAudioChild && this._playingAudioChild !== childName) {
+            const currentAudio = this.shadowRoot.getElementById(`audio-player-${this._playingAudioChild}`);
+            if (currentAudio) {
+                currentAudio.pause();
+                currentAudio.currentTime = 0;
+            }
+        }
+        this._playingAudioChild = childName;
+    }
 
-        const audio = new Audio(`/local/morning_routine_photos/${this._getFilename(child.audio_recording)}`);
-        audio.play().catch(err => {
-            console.error("Erro ao reproduzir áudio:", err);
-            alert("Erro ao reproduzir áudio.");
-        });
+    _onAudioPause(childName) {
+        if (this._playingAudioChild === childName) {
+            this._playingAudioChild = null;
+        }
     }
 
     async _capturePhoto() {
@@ -946,6 +963,35 @@ class MorningRoutineCard extends LitElement {
         .audio-button {
             --mdc-theme-primary: #4CAF50;
             --mdc-theme-on-primary: white;
+        }
+
+        .audio-player-container {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            padding: 12px;
+            background: var(--card-background-color);
+            border: 2px solid #4CAF50;
+            border-radius: 8px;
+            margin-bottom: 8px;
+        }
+
+        .audio-player-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 600;
+            color: #4CAF50;
+        }
+
+        .audio-player-label ha-icon {
+            --mdc-icon-size: 20px;
+        }
+
+        .audio-player-container audio {
+            width: 100%;
+            height: 40px;
+            border-radius: 4px;
         }
 
         @keyframes pulse {
@@ -1310,7 +1356,7 @@ window.customCards.push({
 });
 
 console.info(
-    `%c MORNING-ROUTINE-CARD %c 2.3.2 - YouTube Embed Fix & Material Design Buttons `,
+    `%c MORNING-ROUTINE-CARD %c 2.3.3 - Visible Audio Player `,
     "color: white; font-weight: bold; background: #4CAF50",
     "color: white; font-weight: bold; background: #2196F3"
 );
