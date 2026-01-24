@@ -24,6 +24,11 @@ class MorningRoutineCard extends LitElement {
         _selectedCameraId: { type: String, state: true },
         _countdown: { type: Number, state: true },
         _countdownInterval: { type: Object, state: true },
+        _showHistory: { type: Boolean, state: true },
+        _historyChild: { type: Object, state: true },
+        _historyData: { type: Array, state: true },
+        _historyIndex: { type: Number, state: true },
+        _transcriptions: { type: Object, state: true },
     };
 
     constructor() {
@@ -1125,16 +1130,10 @@ class MorningRoutineCard extends LitElement {
                             </mwc-icon-button>
                         </div>
                         <div class="history-media" data-date="${dateKey}">
-                            ${hasPhoto ? html`
-                                <div class="history-photo-container">
-                                    <h3>📸 Foto do Dia</h3>
-                                    <img src="${currentEntry.photo}" alt="Foto do ${this._formatHistoryDate(currentEntry.date)}" />
-                                </div>
-                            ` : html`<p class="no-media">Sem foto disponível</p>`}
                             ${hasAudio ? html`
                                 <div class="history-audio-container">
                                     <h3>🎤 Áudio do Pequeno-Almoço</h3>
-                                    <audio controls preload="metadata" src="${currentEntry.audio}?date=${dateKey}">
+                                    <audio controls autoplay preload="metadata" src="${currentEntry.audio}?date=${dateKey}">
                                         O teu navegador não suporta áudio.
                                     </audio>
                                     ${transcriptionText ? html`
@@ -1149,6 +1148,12 @@ class MorningRoutineCard extends LitElement {
                                     `}
                                 </div>
                             ` : html`<p class="no-media">Sem áudio disponível</p>`}
+                            ${hasPhoto ? html`
+                                <div class="history-photo-container">
+                                    <h3>📸 Foto do Dia</h3>
+                                    <img src="${currentEntry.photo}" alt="Foto do ${this._formatHistoryDate(currentEntry.date)}" />
+                                </div>
+                            ` : html`<p class="no-media">Sem foto disponível</p>`}
                         </div>
                     </div>
                 </div>
@@ -1258,6 +1263,11 @@ class MorningRoutineCard extends LitElement {
 
         .history-button ha-icon {
             color: var(--child-color);
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .reset-button {
@@ -1279,6 +1289,11 @@ class MorningRoutineCard extends LitElement {
 
         .reset-button ha-icon {
             color: #F44336;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .progress-container {
@@ -1684,6 +1699,9 @@ class MorningRoutineCard extends LitElement {
         .reward-modal-header mwc-icon-button,
         .photo-modal-header mwc-icon-button {
             --mdc-icon-size: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .camera-header mwc-icon-button ha-icon,
@@ -1691,6 +1709,9 @@ class MorningRoutineCard extends LitElement {
         .photo-modal-header mwc-icon-button ha-icon {
             width: 24px;
             height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .camera-container {
@@ -2096,11 +2117,17 @@ class MorningRoutineCard extends LitElement {
 
         .history-modal-header mwc-icon-button {
             --mdc-icon-size: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .history-modal-header mwc-icon-button ha-icon {
             width: 24px;
             height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .history-content {
@@ -2122,11 +2149,17 @@ class MorningRoutineCard extends LitElement {
         .history-navigation mwc-icon-button {
             --mdc-icon-button-size: 48px;
             --mdc-icon-size: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .history-navigation mwc-icon-button ha-icon {
             width: 32px;
             height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .history-navigation mwc-icon-button[disabled] {
