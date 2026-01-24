@@ -1127,6 +1127,7 @@ class MorningRoutineCard extends LitElement {
             .activity-icon {
                 font-size: 42px;
                 margin-bottom: 4px;
+                --mdc-icon-size: 42px;
             }
 
             .activity-icon ha-icon {
@@ -1136,6 +1137,7 @@ class MorningRoutineCard extends LitElement {
 
             .activity-item.has-media .activity-icon {
                 font-size: 34px;
+                --mdc-icon-size: 34px;
             }
 
             .activity-item.has-media .activity-icon ha-icon {
@@ -1190,6 +1192,7 @@ class MorningRoutineCard extends LitElement {
             font-size: 56px;
             margin-bottom: 8px;
             color: var(--primary-text-color);
+            --mdc-icon-size: 56px;
         }
 
         .activity-icon ha-icon {
@@ -1200,6 +1203,7 @@ class MorningRoutineCard extends LitElement {
         .activity-item.has-media .activity-icon {
             font-size: 44px;
             margin-bottom: 6px;
+            --mdc-icon-size: 44px;
         }
 
         .activity-item.has-media .activity-icon ha-icon {
@@ -1854,7 +1858,7 @@ window.customCards.push({
 });
 
 console.info(
-    `%c MORNING-ROUTINE-CARD %c 2.6.2 - Enhanced reward button styling `,
+    `%c MORNING-ROUTINE-CARD %c 2.6.3 - Fix activity icon sizes `,
     "color: white; font-weight: bold; background: #4CAF50",
     "color: white; font-weight: bold; background: #2196F3"
 );
