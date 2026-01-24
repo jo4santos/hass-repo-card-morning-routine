@@ -375,10 +375,9 @@ class MorningRoutineCard extends LitElement {
                 ${hasAudio ? html`
                     <div class="activity-media-preview audio" @click=${(e) => e.stopPropagation()}>
                         <audio
-                            key="${child.audio_recording}"
                             id="activity-audio-${child.state.attributes.child}"
                             style="display: none;"
-                            src="/local/morning_routine_photos/${this._getFilename(child.audio_recording)}"
+                            src="/local/morning_routine_photos/${this._getFilename(child.audio_recording)}?v=${this._getFilename(child.audio_recording)}"
                             @play=${() => this._onAudioPlay(child.state.attributes.child)}
                             @pause=${() => this._onAudioPause(child.state.attributes.child)}
                             @ended=${() => this._onAudioPause(child.state.attributes.child)}>
@@ -1133,10 +1132,9 @@ class MorningRoutineCard extends LitElement {
                                 </div>
                             ` : html`<p class="no-media">Sem foto disponível</p>`}
                             ${hasAudio ? html`
-                                <div class="history-audio-container" key="audio-${dateKey}">
+                                <div class="history-audio-container">
                                     <h3>🎤 Áudio do Pequeno-Almoço</h3>
-                                    <audio controls preload="metadata">
-                                        <source src="${currentEntry.audio}" type="audio/webm">
+                                    <audio controls preload="metadata" src="${currentEntry.audio}?date=${dateKey}">
                                         O teu navegador não suporta áudio.
                                     </audio>
                                     ${transcriptionText ? html`
