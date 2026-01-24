@@ -133,21 +133,6 @@ class MorningRoutineCard extends LitElement {
         return true;
     }
 
-    updated(changedProps) {
-        super.updated(changedProps);
-
-        // Force audio element to reload when showing history
-        if (this._showHistory && this._historyData.length > 0) {
-            const currentEntry = this._historyData[this._historyIndex];
-            if (currentEntry && currentEntry.audio) {
-                const audioElement = this.shadowRoot.querySelector(`#audio-${currentEntry.date}`);
-                if (audioElement) {
-                    audioElement.load();
-                }
-            }
-        }
-    }
-
     set hass(hass) {
         const oldHass = this._hass;
         this._hass = hass;
@@ -390,12 +375,13 @@ class MorningRoutineCard extends LitElement {
                 ${hasAudio ? html`
                     <div class="activity-media-preview audio" @click=${(e) => e.stopPropagation()}>
                         <audio
+                            key="${child.audio_recording}"
                             id="activity-audio-${child.state.attributes.child}"
                             style="display: none;"
+                            src="/local/morning_routine_photos/${this._getFilename(child.audio_recording)}"
                             @play=${() => this._onAudioPlay(child.state.attributes.child)}
                             @pause=${() => this._onAudioPause(child.state.attributes.child)}
                             @ended=${() => this._onAudioPause(child.state.attributes.child)}>
-                            <source src="/local/morning_routine_photos/${this._getFilename(child.audio_recording)}" type="audio/webm">
                         </audio>
                         <button
                             class="audio-play-button"
@@ -1147,10 +1133,10 @@ class MorningRoutineCard extends LitElement {
                                 </div>
                             ` : html`<p class="no-media">Sem foto disponível</p>`}
                             ${hasAudio ? html`
-                                <div class="history-audio-container">
+                                <div class="history-audio-container" key="audio-${dateKey}">
                                     <h3>🎤 Áudio do Pequeno-Almoço</h3>
-                                    <audio controls id="audio-${dateKey}">
-                                        <source src="${currentEntry.audio}#${dateKey}" type="audio/webm">
+                                    <audio controls preload="metadata">
+                                        <source src="${currentEntry.audio}" type="audio/webm">
                                         O teu navegador não suporta áudio.
                                     </audio>
                                     ${transcriptionText ? html`
@@ -2262,7 +2248,7 @@ window.customCards.push({
 });
 
 console.info(
-    `%c MORNING-ROUTINE-CARD %c 2.8.1 - Fix audio loading and transcription display `,
+    `%c MORNING-ROUTINE-CARD %c 2.8.2 - Simplify audio loading to fix loop issues `,
     "color: white; font-weight: bold; background: #4CAF50",
     "color: white; font-weight: bold; background: #2196F3"
 );
