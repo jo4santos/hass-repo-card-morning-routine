@@ -55,7 +55,7 @@ class MorningRoutineCard extends LitElement {
         this._historyChild = null;
         this._historyData = [];
         this._historyIndex = 0;
-        this._currentTranscription = null;
+        this._transcriptions = {};  // Store transcriptions by date
 
         // Update timer every second
         this._timerInterval = setInterval(() => {
@@ -131,6 +131,21 @@ class MorningRoutineCard extends LitElement {
     shouldUpdate(changedProps) {
         // Always update - we need to catch all state changes
         return true;
+    }
+
+    updated(changedProps) {
+        super.updated(changedProps);
+
+        // Force audio element to reload when showing history
+        if (this._showHistory && this._historyData.length > 0) {
+            const currentEntry = this._historyData[this._historyIndex];
+            if (currentEntry && currentEntry.audio) {
+                const audioElement = this.shadowRoot.querySelector(`#audio-${currentEntry.date}`);
+                if (audioElement) {
+                    audioElement.load();
+                }
+            }
+        }
     }
 
     set hass(hass) {
@@ -994,6 +1009,7 @@ class MorningRoutineCard extends LitElement {
     async _showHistoryModal(child) {
         this._historyChild = child;
         this._historyIndex = 0;
+        this._transcriptions = {};
 
         // Fetch history from integration
         try {
@@ -1008,6 +1024,10 @@ class MorningRoutineCard extends LitElement {
             this._historyData = response.response.history || [];
             this._showHistory = true;
             this.requestUpdate();
+
+            // Load transcription for first day
+            await this.updateComplete;
+            this._loadTranscriptionForCurrentDay();
         } catch (error) {
             console.error('Failed to load history:', error);
         }
@@ -1018,23 +1038,57 @@ class MorningRoutineCard extends LitElement {
         this._historyChild = null;
         this._historyData = [];
         this._historyIndex = 0;
+        this._transcriptions = {};
         this.requestUpdate();
     }
 
     _previousHistoryDay() {
         if (this._historyIndex < this._historyData.length - 1) {
             this._historyIndex++;
-            this._currentTranscription = null;
             this.requestUpdate();
+            // Load transcription for new day
+            this._loadTranscriptionForCurrentDay();
         }
     }
 
     _nextHistoryDay() {
         if (this._historyIndex > 0) {
             this._historyIndex--;
-            this._currentTranscription = null;
             this.requestUpdate();
+            // Load transcription for new day
+            this._loadTranscriptionForCurrentDay();
         }
+    }
+
+    _loadTranscriptionForCurrentDay() {
+        const currentEntry = this._historyData[this._historyIndex];
+        if (!currentEntry || !currentEntry.transcription) {
+            return;
+        }
+
+        const dateKey = currentEntry.date;
+
+        // Check if already loaded
+        if (this._transcriptions[dateKey]) {
+            return;
+        }
+
+        // Fetch transcription
+        fetch(currentEntry.transcription)
+            .then(response => {
+                if (response.ok) {
+                    return response.text();
+                }
+                throw new Error('Transcription not found');
+            })
+            .then(text => {
+                this._transcriptions[dateKey] = text;
+                this.requestUpdate();
+            })
+            .catch(() => {
+                // Transcription not ready yet, mark as pending
+                this._transcriptions[dateKey] = null;
+            });
     }
 
     _formatHistoryDate(dateStr) {
@@ -1053,10 +1107,14 @@ class MorningRoutineCard extends LitElement {
         const currentEntry = this._historyData[this._historyIndex];
         const hasPhoto = currentEntry.photo;
         const hasAudio = currentEntry.audio;
-        const hasTranscription = currentEntry.transcription;
+        const dateKey = currentEntry.date;
 
-        // Add timestamp to audio URL to prevent caching
-        const audioUrl = hasAudio ? `${currentEntry.audio}?t=${Date.now()}` : null;
+        // Load transcription if not already loaded
+        if (currentEntry.transcription && !(dateKey in this._transcriptions)) {
+            this._loadTranscriptionForCurrentDay();
+        }
+
+        const transcriptionText = this._transcriptions[dateKey];
 
         return html`
             <div class="modal-overlay" @click=${this._closeHistoryModal}>
@@ -1081,7 +1139,7 @@ class MorningRoutineCard extends LitElement {
                                 <ha-icon icon="mdi:chevron-right"></ha-icon>
                             </mwc-icon-button>
                         </div>
-                        <div class="history-media">
+                        <div class="history-media" data-date="${dateKey}">
                             ${hasPhoto ? html`
                                 <div class="history-photo-container">
                                     <h3>📸 Foto do Dia</h3>
@@ -1091,12 +1149,17 @@ class MorningRoutineCard extends LitElement {
                             ${hasAudio ? html`
                                 <div class="history-audio-container">
                                     <h3>🎤 Áudio do Pequeno-Almoço</h3>
-                                    <audio controls key="${this._historyIndex}">
-                                        <source src="${audioUrl}" type="audio/webm">
+                                    <audio controls id="audio-${dateKey}">
+                                        <source src="${currentEntry.audio}#${dateKey}" type="audio/webm">
                                         O teu navegador não suporta áudio.
                                     </audio>
-                                    ${hasTranscription ? html`
-                                        ${this._renderTranscription(currentEntry.transcription)}
+                                    ${transcriptionText ? html`
+                                        <div class="transcription-box">
+                                            <h4>📝 Transcrição:</h4>
+                                            <p>${transcriptionText}</p>
+                                        </div>
+                                    ` : currentEntry.transcription ? html`
+                                        <p class="transcription-loading">⏳ A carregar transcrição...</p>
                                     ` : html`
                                         <p class="transcription-loading">⏳ A transcrever áudio...</p>
                                     `}
@@ -1107,30 +1170,6 @@ class MorningRoutineCard extends LitElement {
                 </div>
             </div>
         `;
-    }
-
-    _renderTranscription(transcriptionUrl) {
-        // Fetch and display transcription
-        fetch(transcriptionUrl)
-            .then(response => response.text())
-            .then(text => {
-                this._currentTranscription = text;
-                this.requestUpdate();
-            })
-            .catch(() => {
-                this._currentTranscription = null;
-            });
-
-        if (this._currentTranscription) {
-            return html`
-                <div class="transcription-box">
-                    <h4>📝 Transcrição:</h4>
-                    <p>${this._currentTranscription}</p>
-                </div>
-            `;
-        }
-
-        return html``;
     }
 
     static styles = css`
@@ -2223,7 +2262,7 @@ window.customCards.push({
 });
 
 console.info(
-    `%c MORNING-ROUTINE-CARD %c 2.8.0 - Add audio transcription and fix caching `,
+    `%c MORNING-ROUTINE-CARD %c 2.8.1 - Fix audio loading and transcription display `,
     "color: white; font-weight: bold; background: #4CAF50",
     "color: white; font-weight: bold; background: #2196F3"
 );
