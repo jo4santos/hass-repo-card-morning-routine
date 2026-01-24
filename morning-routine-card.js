@@ -55,6 +55,7 @@ class MorningRoutineCard extends LitElement {
         this._historyChild = null;
         this._historyData = [];
         this._historyIndex = 0;
+        this._currentTranscription = null;
 
         // Update timer every second
         this._timerInterval = setInterval(() => {
@@ -1023,6 +1024,7 @@ class MorningRoutineCard extends LitElement {
     _previousHistoryDay() {
         if (this._historyIndex < this._historyData.length - 1) {
             this._historyIndex++;
+            this._currentTranscription = null;
             this.requestUpdate();
         }
     }
@@ -1030,6 +1032,7 @@ class MorningRoutineCard extends LitElement {
     _nextHistoryDay() {
         if (this._historyIndex > 0) {
             this._historyIndex--;
+            this._currentTranscription = null;
             this.requestUpdate();
         }
     }
@@ -1050,6 +1053,10 @@ class MorningRoutineCard extends LitElement {
         const currentEntry = this._historyData[this._historyIndex];
         const hasPhoto = currentEntry.photo;
         const hasAudio = currentEntry.audio;
+        const hasTranscription = currentEntry.transcription;
+
+        // Add timestamp to audio URL to prevent caching
+        const audioUrl = hasAudio ? `${currentEntry.audio}?t=${Date.now()}` : null;
 
         return html`
             <div class="modal-overlay" @click=${this._closeHistoryModal}>
@@ -1084,10 +1091,15 @@ class MorningRoutineCard extends LitElement {
                             ${hasAudio ? html`
                                 <div class="history-audio-container">
                                     <h3>🎤 Áudio do Pequeno-Almoço</h3>
-                                    <audio controls>
-                                        <source src="${currentEntry.audio}" type="audio/webm">
+                                    <audio controls key="${this._historyIndex}">
+                                        <source src="${audioUrl}" type="audio/webm">
                                         O teu navegador não suporta áudio.
                                     </audio>
+                                    ${hasTranscription ? html`
+                                        ${this._renderTranscription(currentEntry.transcription)}
+                                    ` : html`
+                                        <p class="transcription-loading">⏳ A transcrever áudio...</p>
+                                    `}
                                 </div>
                             ` : html`<p class="no-media">Sem áudio disponível</p>`}
                         </div>
@@ -1095,6 +1107,30 @@ class MorningRoutineCard extends LitElement {
                 </div>
             </div>
         `;
+    }
+
+    _renderTranscription(transcriptionUrl) {
+        // Fetch and display transcription
+        fetch(transcriptionUrl)
+            .then(response => response.text())
+            .then(text => {
+                this._currentTranscription = text;
+                this.requestUpdate();
+            })
+            .catch(() => {
+                this._currentTranscription = null;
+            });
+
+        if (this._currentTranscription) {
+            return html`
+                <div class="transcription-box">
+                    <h4>📝 Transcrição:</h4>
+                    <p>${this._currentTranscription}</p>
+                </div>
+            `;
+        }
+
+        return html``;
     }
 
     static styles = css`
@@ -2118,6 +2154,36 @@ class MorningRoutineCard extends LitElement {
             font-style: italic;
             padding: 20px;
         }
+
+        .transcription-box {
+            margin-top: 16px;
+            padding: 12px;
+            background: var(--primary-background-color);
+            border-radius: 8px;
+            border-left: 4px solid var(--primary-color);
+        }
+
+        .transcription-box h4 {
+            margin: 0 0 8px 0;
+            font-size: 14px;
+            color: var(--primary-text-color);
+        }
+
+        .transcription-box p {
+            margin: 0;
+            font-size: 14px;
+            line-height: 1.5;
+            color: var(--primary-text-color);
+            font-style: italic;
+        }
+
+        .transcription-loading {
+            margin-top: 12px;
+            text-align: center;
+            color: var(--secondary-text-color);
+            font-size: 13px;
+            font-style: italic;
+        }
     `;
 
     static getConfigElement() {
@@ -2157,7 +2223,7 @@ window.customCards.push({
 });
 
 console.info(
-    `%c MORNING-ROUTINE-CARD %c 2.7.1 - Fix history service call `,
+    `%c MORNING-ROUTINE-CARD %c 2.8.0 - Add audio transcription and fix caching `,
     "color: white; font-weight: bold; background: #4CAF50",
     "color: white; font-weight: bold; background: #2196F3"
 );
