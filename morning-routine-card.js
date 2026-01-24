@@ -281,6 +281,11 @@ class MorningRoutineCard extends LitElement {
             <div class="child-header">
                 <h2>${child.name}</h2>
                 <div class="header-right">
+                    <mwc-icon-button
+                        class="reset-button"
+                        @click=${() => this._showResetConfirmation(child)}>
+                        <ha-icon icon="mdi:restart"></ha-icon>
+                    </mwc-icon-button>
                     <div class="progress-container">
                         <svg class="progress-ring" width="60" height="60">
                             <circle
@@ -306,11 +311,6 @@ class MorningRoutineCard extends LitElement {
                         </svg>
                         <span class="progress-text">${child.progress}%</span>
                     </div>
-                    <mwc-icon-button
-                        class="reset-button"
-                        @click=${() => this._showResetConfirmation(child)}>
-                        <ha-icon icon="mdi:restart"></ha-icon>
-                    </mwc-icon-button>
                 </div>
             </div>
         `;
@@ -1056,8 +1056,17 @@ class MorningRoutineCard extends LitElement {
         }
 
         .reset-button {
-            --mdc-icon-button-size: 40px;
+            --mdc-icon-button-size: 48px;
             --mdc-icon-size: 24px;
+            border: 2px solid #F44336 !important;
+            border-radius: 50% !important;
+            background: rgba(244, 67, 54, 0.05) !important;
+            transition: all 0.3s ease;
+        }
+
+        .reset-button:hover {
+            background: rgba(244, 67, 54, 0.15) !important;
+            transform: scale(1.05);
         }
 
         .reset-button ha-icon {
@@ -1301,12 +1310,27 @@ class MorningRoutineCard extends LitElement {
 
         .button-container {
             margin-top: 16px;
-            padding: 12px;
+            padding: 20px;
             text-align: center;
-            border-top: 1px solid var(--divider-color);
+            background: linear-gradient(135deg, rgba(255, 152, 0, 0.1) 0%, rgba(255, 193, 7, 0.1) 100%);
+            border: 2px solid #FFB74D;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(255, 152, 0, 0.2);
             display: flex;
             flex-direction: column;
             gap: 8px;
+            animation: slideIn 0.5s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
 
         .button-container mwc-button {
@@ -1858,7 +1882,7 @@ window.customCards.push({
 });
 
 console.info(
-    `%c MORNING-ROUTINE-CARD %c 2.6.3 - Fix activity icon sizes `,
+    `%c MORNING-ROUTINE-CARD %c 2.6.4 - Enhanced reset button and reward area styling `,
     "color: white; font-weight: bold; background: #4CAF50",
     "color: white; font-weight: bold; background: #2196F3"
 );
