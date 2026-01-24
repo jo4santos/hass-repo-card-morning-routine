@@ -18,6 +18,12 @@ class MorningRoutineCard extends LitElement {
         _photoChild: { type: Object, state: true },
         _currentTime: { type: Number, state: true },
         _playingAudioChild: { type: String, state: true },
+        _showConfirmReset: { type: Boolean, state: true },
+        _confirmResetChild: { type: Object, state: true },
+        _availableCameras: { type: Array, state: true },
+        _selectedCameraId: { type: String, state: true },
+        _countdown: { type: Number, state: true },
+        _countdownInterval: { type: Object, state: true },
     };
 
     constructor() {
@@ -39,6 +45,12 @@ class MorningRoutineCard extends LitElement {
         this._recordingInterval = null;
         this._currentTime = Date.now();
         this._playingAudioChild = null;
+        this._showConfirmReset = false;
+        this._confirmResetChild = null;
+        this._availableCameras = [];
+        this._selectedCameraId = null;
+        this._countdown = 0;
+        this._countdownInterval = null;
 
         // Update timer every second
         this._timerInterval = setInterval(() => {
@@ -204,6 +216,7 @@ class MorningRoutineCard extends LitElement {
             ${this._renderAudioRecorderModal()}
             ${this._renderPhotoModal()}
             ${this._renderRewardModal()}
+            ${this._renderConfirmResetModal()}
         `;
     }
 
@@ -248,16 +261,8 @@ class MorningRoutineCard extends LitElement {
                     ${child.activities.map(activity => this._renderActivity(child, activity))}
                 </div>
 
-                <div class="button-container">
-                    ${hasPhoto ? html`
-                        <div class="photo-thumbnail" @click=${() => this._showPhotoModal(child)}>
-                            <img src="/local/morning_routine_photos/${this._getFilename(child.photo_path)}" alt="Foto de ${child.name}">
-                            <div class="photo-overlay">
-                                <ha-icon icon="mdi:magnify-plus"></ha-icon>
-                            </div>
-                        </div>
-                    ` : ''}
-                    ${allComplete ? html`
+                ${allComplete ? html`
+                    <div class="button-container">
                         <mwc-button
                             class="reward-button"
                             raised
@@ -265,30 +270,8 @@ class MorningRoutineCard extends LitElement {
                             <ha-icon icon="mdi:trophy" slot="icon"></ha-icon>
                             Ver Recompensa
                         </mwc-button>
-                    ` : ''}
-                    ${hasAudio ? html`
-                        <div class="audio-player-container">
-                            <div class="audio-player-label">
-                                <ha-icon icon="mdi:microphone"></ha-icon>
-                                <span>Pequeno-Almoço</span>
-                            </div>
-                            <audio
-                                id="audio-player-${child.state.attributes.child}"
-                                controls
-                                @play=${() => this._onAudioPlay(child.state.attributes.child)}
-                                @pause=${() => this._onAudioPause(child.state.attributes.child)}
-                                @ended=${() => this._onAudioPause(child.state.attributes.child)}>
-                                <source src="/local/morning_routine_photos/${this._getFilename(child.audio_recording)}" type="audio/webm">
-                            </audio>
-                        </div>
-                    ` : ''}
-                    <mwc-button
-                        @click=${() => this._resetChild(child)}
-                        dense>
-                        <ha-icon icon="mdi:restart" slot="icon"></ha-icon>
-                        Reiniciar Dia
-                    </mwc-button>
-                </div>
+                    </div>
+                ` : ''}
             </div>
         `;
     }
@@ -297,30 +280,37 @@ class MorningRoutineCard extends LitElement {
         return html`
             <div class="child-header">
                 <h2>${child.name}</h2>
-                <div class="progress-container">
-                    <svg class="progress-ring" width="60" height="60">
-                        <circle
-                            class="progress-ring-bg"
-                            stroke="#e0e0e0"
-                            stroke-width="4"
-                            fill="transparent"
-                            r="26"
-                            cx="30"
-                            cy="30"
-                        ></circle>
-                        <circle
-                            class="progress-ring-circle"
-                            stroke="${child.color || '#4CAF50'}"
-                            stroke-width="4"
-                            fill="transparent"
-                            r="26"
-                            cx="30"
-                            cy="30"
-                            style="stroke-dasharray: ${2 * Math.PI * 26};
-                                   stroke-dashoffset: ${2 * Math.PI * 26 * (1 - child.progress / 100)}"
-                        ></circle>
-                    </svg>
-                    <span class="progress-text">${child.progress}%</span>
+                <div class="header-right">
+                    <div class="progress-container">
+                        <svg class="progress-ring" width="60" height="60">
+                            <circle
+                                class="progress-ring-bg"
+                                stroke="#e0e0e0"
+                                stroke-width="4"
+                                fill="transparent"
+                                r="26"
+                                cx="30"
+                                cy="30"
+                            ></circle>
+                            <circle
+                                class="progress-ring-circle"
+                                stroke="${child.color || '#4CAF50'}"
+                                stroke-width="4"
+                                fill="transparent"
+                                r="26"
+                                cx="30"
+                                cy="30"
+                                style="stroke-dasharray: ${2 * Math.PI * 26};
+                                       stroke-dashoffset: ${2 * Math.PI * 26 * (1 - child.progress / 100)}"
+                            ></circle>
+                        </svg>
+                        <span class="progress-text">${child.progress}%</span>
+                    </div>
+                    <mwc-icon-button
+                        class="reset-button"
+                        @click=${() => this._showResetConfirmation(child)}>
+                        <ha-icon icon="mdi:restart"></ha-icon>
+                    </mwc-icon-button>
                 </div>
             </div>
         `;
@@ -375,19 +365,38 @@ class MorningRoutineCard extends LitElement {
 
         // Check if activity requires special interaction
         if (activity.id === 'breakfast' && !activity.completed) {
-            // Show audio recorder for breakfast
+            // Show audio preview if exists, otherwise recorder
             this._currentChild = childName;
             this._currentActivity = activity.id;
-            this._showAudioRecorder = true;
-            this.requestUpdate();
+
+            if (child.audio_recording) {
+                // Show preview with autoplay
+                this._showPhoto = true;
+                this._photoChild = child;
+                this.requestUpdate();
+            } else {
+                // Show recorder
+                this._showAudioRecorder = true;
+                this.requestUpdate();
+            }
         } else if (activity.camera_required && !activity.completed) {
-            // Show camera for dressed
+            // Show photo preview if exists, otherwise camera
             this._currentChild = childName;
             this._currentActivity = activity.id;
-            this._showCamera = true;
-            this.requestUpdate();
-            await this.updateComplete;
-            this._startCamera();
+
+            if (child.photo_path) {
+                // Show preview
+                this._showPhoto = true;
+                this._photoChild = child;
+                this.requestUpdate();
+            } else {
+                // Show camera
+                this._showCamera = true;
+                this.requestUpdate();
+                await this.updateComplete;
+                await this._loadCameras();
+                this._startCamera();
+            }
         } else {
             // Direct completion
             await this._completeActivity(childName, activity.id, true);
@@ -406,12 +415,29 @@ class MorningRoutineCard extends LitElement {
                             <ha-icon icon="mdi:close"></ha-icon>
                         </mwc-icon-button>
                     </div>
+                    ${this._availableCameras.length > 1 ? html`
+                        <div class="camera-selector">
+                            <label>Câmera:</label>
+                            <select @change=${this._onCameraChange}>
+                                ${this._availableCameras.map(camera => html`
+                                    <option value="${camera.deviceId}" ?selected=${camera.deviceId === this._selectedCameraId}>
+                                        ${camera.label || `Câmera ${this._availableCameras.indexOf(camera) + 1}`}
+                                    </option>
+                                `)}
+                            </select>
+                        </div>
+                    ` : ''}
                     <div class="camera-container">
                         <video id="camera-preview" autoplay playsinline></video>
                         <canvas id="camera-canvas" style="display:none"></canvas>
+                        ${this._countdown > 0 ? html`
+                            <div class="countdown-overlay">
+                                <div class="countdown-number">${this._countdown}</div>
+                            </div>
+                        ` : ''}
                     </div>
                     <div class="camera-controls">
-                        <mwc-button raised class="capture-button" @click=${this._capturePhoto}>
+                        <mwc-button raised class="capture-button" @click=${this._startCountdown}>
                             <ha-icon icon="mdi:camera" slot="icon"></ha-icon>
                             Capturar
                         </mwc-button>
@@ -424,12 +450,40 @@ class MorningRoutineCard extends LitElement {
         `;
     }
 
+    async _loadCameras() {
+        try {
+            const devices = await navigator.mediaDevices.enumerateDevices();
+            this._availableCameras = devices.filter(device => device.kind === 'videoinput');
+            if (this._availableCameras.length > 0 && !this._selectedCameraId) {
+                this._selectedCameraId = this._availableCameras[0].deviceId;
+            }
+        } catch (err) {
+            console.error("Erro ao enumerar câmeras:", err);
+        }
+    }
+
+    async _onCameraChange(e) {
+        this._selectedCameraId = e.target.value;
+        await this._startCamera();
+    }
+
     async _startCamera() {
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({
-                video: { facingMode: "user", width: 640, height: 480 }
-            });
+            // Stop existing stream
             const video = this.shadowRoot.getElementById("camera-preview");
+            if (video && video.srcObject) {
+                video.srcObject.getTracks().forEach(track => track.stop());
+            }
+
+            const constraints = {
+                video: {
+                    deviceId: this._selectedCameraId ? { exact: this._selectedCameraId } : undefined,
+                    width: 640,
+                    height: 480
+                }
+            };
+
+            const stream = await navigator.mediaDevices.getUserMedia(constraints);
             if (video) {
                 video.srcObject = stream;
             }
@@ -438,6 +492,26 @@ class MorningRoutineCard extends LitElement {
             alert("Não foi possível aceder à câmara. Por favor certifica-te que o HTTPS está ativado e que as permissões da câmara foram concedidas.");
             this._closeCamera();
         }
+    }
+
+    _startCountdown() {
+        if (this._countdownInterval) {
+            clearInterval(this._countdownInterval);
+        }
+
+        this._countdown = 3;
+        this.requestUpdate();
+
+        this._countdownInterval = setInterval(() => {
+            this._countdown--;
+            this.requestUpdate();
+
+            if (this._countdown === 0) {
+                clearInterval(this._countdownInterval);
+                this._countdownInterval = null;
+                this._capturePhoto();
+            }
+        }, 1000);
     }
 
     _closeCamera() {
@@ -651,12 +725,25 @@ class MorningRoutineCard extends LitElement {
         }
     }
 
-    async _resetChild(child) {
-        const childName = child.state.attributes.child;
+    _showResetConfirmation(child) {
+        this._confirmResetChild = child;
+        this._showConfirmReset = true;
+    }
+
+    _closeResetConfirmation() {
+        this._showConfirmReset = false;
+        this._confirmResetChild = null;
+    }
+
+    async _confirmReset() {
+        if (!this._confirmResetChild) return;
+
+        const childName = this._confirmResetChild.state.attributes.child;
         try {
             await this._hass.callService("morning_routine", "reset_routine", {
                 child: childName,
             });
+            this._closeResetConfirmation();
         } catch (err) {
             console.error("Erro ao reiniciar:", err);
             alert("Falha ao reiniciar. Por favor tente novamente.");
@@ -694,22 +781,71 @@ class MorningRoutineCard extends LitElement {
     _renderPhotoModal() {
         if (!this._showPhoto || !this._photoChild) return html``;
 
+        const isAudio = this._currentActivity === 'breakfast';
+        const hasContent = isAudio ? this._photoChild.audio_recording : this._photoChild.photo_path;
+
         return html`
             <div class="modal-overlay" @click=${this._closePhotoModal}>
                 <div class="photo-modal" @click=${(e) => e.stopPropagation()}>
                     <div class="photo-modal-header">
-                        <h2>📸 Foto - ${this._photoChild.name}</h2>
+                        <h2>${isAudio ? '🎤' : '📸'} ${isAudio ? 'Áudio' : 'Foto'} - ${this._photoChild.name}</h2>
                         <mwc-icon-button @click=${this._closePhotoModal}>
                             <ha-icon icon="mdi:close"></ha-icon>
                         </mwc-icon-button>
                     </div>
                     <div class="photo-modal-content">
-                        <img src="/local/morning_routine_photos/${this._getFilename(this._photoChild.photo_path)}"
-                             alt="Foto de ${this._photoChild.name}" />
+                        ${isAudio ? html`
+                            ${hasContent ? html`
+                                <div class="audio-preview-container">
+                                    <ha-icon icon="mdi:microphone" class="audio-preview-icon"></ha-icon>
+                                    <audio
+                                        id="preview-audio-player"
+                                        controls
+                                        autoplay>
+                                        <source src="/local/morning_routine_photos/${this._getFilename(this._photoChild.audio_recording)}" type="audio/webm">
+                                    </audio>
+                                </div>
+                            ` : ''}
+                        ` : html`
+                            ${hasContent ? html`
+                                <img src="/local/morning_routine_photos/${this._getFilename(this._photoChild.photo_path)}"
+                                     alt="Foto de ${this._photoChild.name}" />
+                            ` : ''}
+                        `}
+                    </div>
+                    <div class="photo-modal-actions">
+                        <mwc-button
+                            raised
+                            class="retake-button"
+                            @click=${this._retakeMedia}>
+                            <ha-icon icon="${isAudio ? 'mdi:record' : 'mdi:camera'}" slot="icon"></ha-icon>
+                            ${isAudio ? 'Gravar Novamente' : 'Tirar Outra Foto'}
+                        </mwc-button>
+                        <mwc-button
+                            class="cancel-button"
+                            @click=${this._closePhotoModal}>
+                            Fechar
+                        </mwc-button>
                     </div>
                 </div>
             </div>
         `;
+    }
+
+    _retakeMedia() {
+        // Close preview modal
+        this._showPhoto = false;
+
+        // Open capture modal based on activity type
+        if (this._currentActivity === 'breakfast') {
+            this._showAudioRecorder = true;
+        } else {
+            this._showCamera = true;
+            this.updateComplete.then(async () => {
+                await this._loadCameras();
+                this._startCamera();
+            });
+        }
     }
 
     _renderRewardModal() {
@@ -749,6 +885,39 @@ class MorningRoutineCard extends LitElement {
                         <p class="reward-message">
                             Completaste a rotina matinal! Parabéns! 🎊
                         </p>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    _renderConfirmResetModal() {
+        if (!this._showConfirmReset || !this._confirmResetChild) return html``;
+
+        return html`
+            <div class="modal-overlay" @click=${this._closeResetConfirmation}>
+                <div class="confirm-modal" @click=${(e) => e.stopPropagation()}>
+                    <div class="confirm-modal-header">
+                        <h2>⚠️ Confirmar Reinicialização</h2>
+                    </div>
+                    <div class="confirm-modal-content">
+                        <p>Tens a certeza que queres reiniciar o dia do <strong>${this._confirmResetChild.name}</strong>?</p>
+                        <p class="confirm-warning">Todas as atividades concluídas serão marcadas como pendentes.</p>
+                    </div>
+                    <div class="confirm-modal-actions">
+                        <mwc-button
+                            raised
+                            class="confirm-button"
+                            @click=${this._confirmReset}>
+                            <ha-icon icon="mdi:check" slot="icon"></ha-icon>
+                            Sim, Reiniciar
+                        </mwc-button>
+                        <mwc-button
+                            class="cancel-button"
+                            @click=${this._closeResetConfirmation}>
+                            <ha-icon icon="mdi:close" slot="icon"></ha-icon>
+                            Cancelar
+                        </mwc-button>
                     </div>
                 </div>
             </div>
@@ -824,6 +993,21 @@ class MorningRoutineCard extends LitElement {
             margin: 0;
             font-size: 24px;
             color: var(--child-color);
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .reset-button {
+            --mdc-icon-button-size: 40px;
+            --mdc-icon-size: 24px;
+        }
+
+        .reset-button ha-icon {
+            color: #F44336;
         }
 
         .progress-container {
@@ -1075,11 +1259,61 @@ class MorningRoutineCard extends LitElement {
 
         .camera-container {
             padding: 16px;
+            position: relative;
         }
 
         #camera-preview {
             width: 100%;
             border-radius: 8px;
+        }
+
+        .camera-selector {
+            padding: 16px;
+            border-bottom: 1px solid var(--divider-color);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .camera-selector label {
+            font-weight: 600;
+        }
+
+        .camera-selector select {
+            flex: 1;
+            padding: 8px;
+            border-radius: 4px;
+            border: 1px solid var(--divider-color);
+            background: var(--card-background-color);
+            color: var(--primary-text-color);
+            font-size: 14px;
+        }
+
+        .countdown-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0, 0, 0, 0.7);
+            border-radius: 8px;
+        }
+
+        .countdown-number {
+            font-size: 120px;
+            font-weight: bold;
+            color: white;
+            text-shadow: 0 0 20px rgba(255, 255, 255, 0.8);
+            animation: countdown-pulse 1s ease-out;
+        }
+
+        @keyframes countdown-pulse {
+            0% { transform: scale(0.5); opacity: 0; }
+            50% { transform: scale(1.2); opacity: 1; }
+            100% { transform: scale(1); opacity: 1; }
         }
 
         .audio-recorder-container {
@@ -1317,6 +1551,84 @@ class MorningRoutineCard extends LitElement {
             max-height: 70vh;
             border-radius: 8px;
         }
+
+        .photo-modal-actions {
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            padding: 16px;
+            border-top: 1px solid var(--divider-color);
+        }
+
+        .retake-button {
+            --mdc-theme-primary: #FF9800;
+            --mdc-theme-on-primary: white;
+        }
+
+        .audio-preview-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+            padding: 32px;
+        }
+
+        .audio-preview-icon {
+            font-size: 80px;
+            color: #4CAF50;
+        }
+
+        .audio-preview-container audio {
+            width: 100%;
+            max-width: 400px;
+        }
+
+        /* Confirm Reset Modal */
+        .confirm-modal {
+            background: var(--card-background-color);
+            border-radius: 12px;
+            max-width: 500px;
+            width: 90%;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .confirm-modal-header {
+            padding: 16px;
+            border-bottom: 1px solid var(--divider-color);
+        }
+
+        .confirm-modal-header h2 {
+            margin: 0;
+            font-size: 20px;
+            color: #F44336;
+        }
+
+        .confirm-modal-content {
+            padding: 24px;
+        }
+
+        .confirm-modal-content p {
+            margin: 0 0 12px 0;
+            font-size: 16px;
+        }
+
+        .confirm-warning {
+            color: #F44336;
+            font-weight: 600;
+        }
+
+        .confirm-modal-actions {
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            padding: 16px;
+            border-top: 1px solid var(--divider-color);
+        }
+
+        .confirm-button {
+            --mdc-theme-primary: #F44336;
+            --mdc-theme-on-primary: white;
+        }
     `;
 
     static getConfigElement() {
@@ -1356,7 +1668,7 @@ window.customCards.push({
 });
 
 console.info(
-    `%c MORNING-ROUTINE-CARD %c 2.3.3 - Visible Audio Player `,
+    `%c MORNING-ROUTINE-CARD %c 2.4.0 - Enhanced UX with Previews & Camera Selection `,
     "color: white; font-weight: bold; background: #4CAF50",
     "color: white; font-weight: bold; background: #2196F3"
 );
