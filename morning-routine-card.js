@@ -1062,6 +1062,9 @@ class MorningRoutineCard extends LitElement {
             border-radius: 50% !important;
             background: rgba(244, 67, 54, 0.05) !important;
             transition: all 0.3s ease;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
         }
 
         .reset-button:hover {
@@ -1472,6 +1475,19 @@ class MorningRoutineCard extends LitElement {
             margin: 0;
         }
 
+        .camera-header mwc-icon-button,
+        .reward-modal-header mwc-icon-button,
+        .photo-modal-header mwc-icon-button {
+            --mdc-icon-size: 24px;
+        }
+
+        .camera-header mwc-icon-button ha-icon,
+        .reward-modal-header mwc-icon-button ha-icon,
+        .photo-modal-header mwc-icon-button ha-icon {
+            width: 24px;
+            height: 24px;
+        }
+
         .camera-container {
             padding: 16px;
             position: relative;
@@ -1554,6 +1570,7 @@ class MorningRoutineCard extends LitElement {
             border: 4px solid #e0e0e0;
             cursor: pointer;
             transition: transform 0.2s, box-shadow 0.2s;
+            --mdc-icon-size: 60px;
         }
 
         .recording-indicator:hover {
@@ -1882,7 +1899,7 @@ window.customCards.push({
 });
 
 console.info(
-    `%c MORNING-ROUTINE-CARD %c 2.6.4 - Enhanced reset button and reward area styling `,
+    `%c MORNING-ROUTINE-CARD %c 2.6.5 - Fix audio modal icons and reset button centering `,
     "color: white; font-weight: bold; background: #4CAF50",
     "color: white; font-weight: bold; background: #2196F3"
 );
