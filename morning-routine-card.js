@@ -1322,6 +1322,13 @@ class MorningRoutineCard extends LitElement {
             --mdc-theme-primary: #FF9800;
             --mdc-theme-on-primary: white;
             animation: pulse 2s infinite;
+            border: 3px solid #FFB74D !important;
+            box-shadow: 0 4px 12px rgba(255, 152, 0, 0.4) !important;
+            font-weight: bold !important;
+        }
+
+        .reward-button:hover {
+            box-shadow: 0 6px 16px rgba(255, 152, 0, 0.6) !important;
         }
 
         .audio-button {
@@ -1847,7 +1854,7 @@ window.customCards.push({
 });
 
 console.info(
-    `%c MORNING-ROUTINE-CARD %c 2.6.1 - Add close button to photo modal `,
+    `%c MORNING-ROUTINE-CARD %c 2.6.2 - Enhanced reward button styling `,
     "color: white; font-weight: bold; background: #4CAF50",
     "color: white; font-weight: bold; background: #2196F3"
 );
