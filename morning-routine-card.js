@@ -51,6 +51,10 @@ class MorningRoutineCard extends LitElement {
         this._selectedCameraId = null;
         this._countdown = 0;
         this._countdownInterval = null;
+        this._showHistory = false;
+        this._historyChild = null;
+        this._historyData = [];
+        this._historyIndex = 0;
 
         // Update timer every second
         this._timerInterval = setInterval(() => {
@@ -217,6 +221,7 @@ class MorningRoutineCard extends LitElement {
             ${this._renderPhotoModal()}
             ${this._renderRewardModal()}
             ${this._renderConfirmResetModal()}
+            ${this._renderHistoryModal()}
         `;
     }
 
@@ -279,7 +284,14 @@ class MorningRoutineCard extends LitElement {
     _renderHeader(child) {
         return html`
             <div class="child-header">
-                <h2>${child.name}</h2>
+                <div class="header-left">
+                    <h2>${child.name}</h2>
+                    <mwc-icon-button
+                        class="history-button"
+                        @click=${() => this._showHistoryModal(child)}>
+                        <ha-icon icon="mdi:history"></ha-icon>
+                    </mwc-icon-button>
+                </div>
                 <div class="header-right">
                     <mwc-icon-button
                         class="reset-button"
@@ -978,6 +990,112 @@ class MorningRoutineCard extends LitElement {
         `;
     }
 
+    async _showHistoryModal(child) {
+        this._historyChild = child;
+        this._historyIndex = 0;
+
+        // Fetch history from integration
+        try {
+            const response = await this.hass.callService(
+                'morning_routine',
+                'get_history',
+                { child: child.state.attributes.child },
+                { return_response: true }
+            );
+
+            this._historyData = response.history || [];
+            this._showHistory = true;
+            this.requestUpdate();
+        } catch (error) {
+            console.error('Failed to load history:', error);
+        }
+    }
+
+    _closeHistoryModal() {
+        this._showHistory = false;
+        this._historyChild = null;
+        this._historyData = [];
+        this._historyIndex = 0;
+        this.requestUpdate();
+    }
+
+    _previousHistoryDay() {
+        if (this._historyIndex < this._historyData.length - 1) {
+            this._historyIndex++;
+            this.requestUpdate();
+        }
+    }
+
+    _nextHistoryDay() {
+        if (this._historyIndex > 0) {
+            this._historyIndex--;
+            this.requestUpdate();
+        }
+    }
+
+    _formatHistoryDate(dateStr) {
+        // Format YYYYMMDD to DD/MM/YYYY
+        const year = dateStr.substring(0, 4);
+        const month = dateStr.substring(4, 6);
+        const day = dateStr.substring(6, 8);
+        return `${day}/${month}/${year}`;
+    }
+
+    _renderHistoryModal() {
+        if (!this._showHistory || !this._historyChild || this._historyData.length === 0) {
+            return html``;
+        }
+
+        const currentEntry = this._historyData[this._historyIndex];
+        const hasPhoto = currentEntry.photo;
+        const hasAudio = currentEntry.audio;
+
+        return html`
+            <div class="modal-overlay" @click=${this._closeHistoryModal}>
+                <div class="history-modal" @click=${(e) => e.stopPropagation()}>
+                    <div class="history-modal-header">
+                        <h2>📅 Histórico - ${this._historyChild.name}</h2>
+                        <mwc-icon-button @click=${this._closeHistoryModal}>
+                            <ha-icon icon="mdi:close"></ha-icon>
+                        </mwc-icon-button>
+                    </div>
+                    <div class="history-content">
+                        <div class="history-navigation">
+                            <mwc-icon-button
+                                ?disabled=${this._historyIndex >= this._historyData.length - 1}
+                                @click=${this._previousHistoryDay}>
+                                <ha-icon icon="mdi:chevron-left"></ha-icon>
+                            </mwc-icon-button>
+                            <span class="history-date">${this._formatHistoryDate(currentEntry.date)}</span>
+                            <mwc-icon-button
+                                ?disabled=${this._historyIndex <= 0}
+                                @click=${this._nextHistoryDay}>
+                                <ha-icon icon="mdi:chevron-right"></ha-icon>
+                            </mwc-icon-button>
+                        </div>
+                        <div class="history-media">
+                            ${hasPhoto ? html`
+                                <div class="history-photo-container">
+                                    <h3>📸 Foto do Dia</h3>
+                                    <img src="${currentEntry.photo}" alt="Foto do ${this._formatHistoryDate(currentEntry.date)}" />
+                                </div>
+                            ` : html`<p class="no-media">Sem foto disponível</p>`}
+                            ${hasAudio ? html`
+                                <div class="history-audio-container">
+                                    <h3>🎤 Áudio do Pequeno-Almoço</h3>
+                                    <audio controls>
+                                        <source src="${currentEntry.audio}" type="audio/webm">
+                                        O teu navegador não suporta áudio.
+                                    </audio>
+                                </div>
+                            ` : html`<p class="no-media">Sem áudio disponível</p>`}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
     static styles = css`
         :host {
             --mdc-theme-primary: var(--primary-text-color);
@@ -1049,10 +1167,37 @@ class MorningRoutineCard extends LitElement {
             color: var(--child-color);
         }
 
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
         .header-right {
             display: flex;
             align-items: center;
             gap: 8px;
+        }
+
+        .history-button {
+            --mdc-icon-button-size: 40px;
+            --mdc-icon-size: 20px;
+            border: 2px solid var(--child-color) !important;
+            border-radius: 50% !important;
+            background: rgba(var(--child-color-rgb), 0.05) !important;
+            transition: all 0.3s ease;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+        }
+
+        .history-button:hover {
+            background: rgba(var(--child-color-rgb), 0.15) !important;
+            transform: scale(1.05);
+        }
+
+        .history-button ha-icon {
+            color: var(--child-color);
         }
 
         .reset-button {
@@ -1860,6 +2005,118 @@ class MorningRoutineCard extends LitElement {
             --mdc-theme-primary: #F44336;
             --mdc-theme-on-primary: white;
         }
+
+        /* History Modal */
+        .history-modal {
+            position: relative;
+            background: var(--card-background-color);
+            border-radius: 12px;
+            width: 90%;
+            max-width: 600px;
+            max-height: 85vh;
+            overflow: hidden;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .history-modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px;
+            border-bottom: 1px solid var(--divider-color);
+            flex-shrink: 0;
+        }
+
+        .history-modal-header h2 {
+            margin: 0;
+            font-size: 20px;
+        }
+
+        .history-modal-header mwc-icon-button {
+            --mdc-icon-size: 24px;
+        }
+
+        .history-modal-header mwc-icon-button ha-icon {
+            width: 24px;
+            height: 24px;
+        }
+
+        .history-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+        }
+
+        .history-navigation {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding: 12px;
+            background: var(--primary-background-color);
+            border-radius: 8px;
+        }
+
+        .history-navigation mwc-icon-button {
+            --mdc-icon-button-size: 48px;
+            --mdc-icon-size: 32px;
+        }
+
+        .history-navigation mwc-icon-button ha-icon {
+            width: 32px;
+            height: 32px;
+        }
+
+        .history-navigation mwc-icon-button[disabled] {
+            opacity: 0.3;
+        }
+
+        .history-date {
+            font-size: 20px;
+            font-weight: bold;
+            color: var(--primary-text-color);
+        }
+
+        .history-media {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        .history-photo-container,
+        .history-audio-container {
+            background: var(--card-background-color);
+            border-radius: 12px;
+            padding: 16px;
+            border: 2px solid var(--divider-color);
+        }
+
+        .history-photo-container h3,
+        .history-audio-container h3 {
+            margin: 0 0 12px 0;
+            font-size: 16px;
+            color: var(--primary-text-color);
+        }
+
+        .history-photo-container img {
+            width: 100%;
+            height: auto;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .history-audio-container audio {
+            width: 100%;
+        }
+
+        .no-media {
+            text-align: center;
+            color: var(--secondary-text-color);
+            font-style: italic;
+            padding: 20px;
+        }
     `;
 
     static getConfigElement() {
@@ -1899,7 +2156,7 @@ window.customCards.push({
 });
 
 console.info(
-    `%c MORNING-ROUTINE-CARD %c 2.6.5 - Fix audio modal icons and reset button centering `,
+    `%c MORNING-ROUTINE-CARD %c 2.7.0 - Add history gallery for photos and audios `,
     "color: white; font-weight: bold; background: #4CAF50",
     "color: white; font-weight: bold; background: #2196F3"
 );
