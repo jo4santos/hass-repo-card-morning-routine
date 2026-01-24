@@ -996,14 +996,15 @@ class MorningRoutineCard extends LitElement {
 
         // Fetch history from integration
         try {
-            const response = await this.hass.callService(
-                'morning_routine',
-                'get_history',
-                { child: child.state.attributes.child },
-                { return_response: true }
-            );
+            const response = await this._hass.callWS({
+                type: 'call_service',
+                domain: 'morning_routine',
+                service: 'get_history',
+                service_data: { child: child.state.attributes.child },
+                return_response: true
+            });
 
-            this._historyData = response.history || [];
+            this._historyData = response.response.history || [];
             this._showHistory = true;
             this.requestUpdate();
         } catch (error) {
@@ -2156,7 +2157,7 @@ window.customCards.push({
 });
 
 console.info(
-    `%c MORNING-ROUTINE-CARD %c 2.7.0 - Add history gallery for photos and audios `,
+    `%c MORNING-ROUTINE-CARD %c 2.7.1 - Fix history service call `,
     "color: white; font-weight: bold; background: #4CAF50",
     "color: white; font-weight: bold; background: #2196F3"
 );
