@@ -334,9 +334,13 @@ class MorningRoutineCard extends LitElement {
         // Log ALL activities during render to track state
         console.log(`[Render ${new Date().toISOString()}] ${child.name}/${activity.id}: completed=${isCompleted}, last_modified=${freshActivity?.last_modified || 'N/A'}`);
 
+        // Check if activity has media
+        const hasPhoto = activity.id === 'dressed' && child.photo_path;
+        const hasAudio = activity.id === 'breakfast' && child.audio_recording;
+
         return html`
             <div
-                class="activity-item ${isCompleted ? 'completed' : 'pending'}"
+                class="activity-item ${isCompleted ? 'completed' : 'pending'} ${hasPhoto || hasAudio ? 'has-media' : ''}"
                 @click=${() => this._handleActivityClick(child, activity)}
                 data-activity-id="${activity.id}"
                 data-completed="${isCompleted}"
@@ -345,6 +349,37 @@ class MorningRoutineCard extends LitElement {
                     <ha-icon icon="${activity.icon || 'mdi:check-circle-outline'}"></ha-icon>
                 </div>
                 <div class="activity-name">${activity.name}</div>
+
+                ${hasPhoto ? html`
+                    <div class="activity-media-preview" @click=${(e) => e.stopPropagation()}>
+                        <img
+                            src="/local/morning_routine_photos/${this._getFilename(child.photo_path)}"
+                            alt="Preview"
+                            @click=${() => this._handleActivityClick(child, activity)} />
+                    </div>
+                ` : ''}
+
+                ${hasAudio ? html`
+                    <div class="activity-media-preview audio" @click=${(e) => e.stopPropagation()}>
+                        <audio
+                            id="activity-audio-${child.state.attributes.child}"
+                            style="display: none;"
+                            @play=${() => this._onAudioPlay(child.state.attributes.child)}
+                            @pause=${() => this._onAudioPause(child.state.attributes.child)}
+                            @ended=${() => this._onAudioPause(child.state.attributes.child)}>
+                            <source src="/local/morning_routine_photos/${this._getFilename(child.audio_recording)}" type="audio/webm">
+                        </audio>
+                        <button
+                            class="audio-play-button"
+                            @click=${(e) => {
+                                e.stopPropagation();
+                                this._toggleAudio(child.state.attributes.child);
+                            }}>
+                            <ha-icon icon="${this._playingAudioChild === child.state.attributes.child ? 'mdi:pause' : 'mdi:play'}"></ha-icon>
+                        </button>
+                    </div>
+                ` : ''}
+
                 ${isCompleted ? html`
                     <div class="check-mark">
                         <ha-icon icon="mdi:check-circle"></ha-icon>
@@ -357,30 +392,15 @@ class MorningRoutineCard extends LitElement {
     async _handleActivityClick(child, activity) {
         const childName = child.state.attributes.child;
 
-        // Toggle: if already completed, uncheck it
-        if (activity.completed) {
-            await this._completeActivity(childName, activity.id, false);
-            return;
-        }
-
-        // Check if activity requires special interaction
-        if (activity.id === 'breakfast' && !activity.completed) {
-            // Show audio preview if exists, otherwise recorder
+        // Check if activity requires special interaction (photo or audio)
+        if (activity.id === 'breakfast') {
+            // Always show audio recorder, never preview
             this._currentChild = childName;
             this._currentActivity = activity.id;
-
-            if (child.audio_recording) {
-                // Show preview with autoplay
-                this._showPhoto = true;
-                this._photoChild = child;
-                this.requestUpdate();
-            } else {
-                // Show recorder
-                this._showAudioRecorder = true;
-                this.requestUpdate();
-            }
-        } else if (activity.camera_required && !activity.completed) {
-            // Show photo preview if exists, otherwise camera
+            this._showAudioRecorder = true;
+            this.requestUpdate();
+        } else if (activity.camera_required) {
+            // Always show photo preview/camera, don't toggle
             this._currentChild = childName;
             this._currentActivity = activity.id;
 
@@ -398,8 +418,12 @@ class MorningRoutineCard extends LitElement {
                 this._startCamera();
             }
         } else {
-            // Direct completion
-            await this._completeActivity(childName, activity.id, true);
+            // Direct completion/toggle for other activities
+            if (activity.completed) {
+                await this._completeActivity(childName, activity.id, false);
+            } else {
+                await this._completeActivity(childName, activity.id, true);
+            }
         }
     }
 
@@ -410,7 +434,7 @@ class MorningRoutineCard extends LitElement {
             <div class="modal-overlay" @click=${this._closeCamera}>
                 <div class="camera-modal" @click=${(e) => e.stopPropagation()}>
                     <div class="camera-header">
-                        <h2>📸 Tira uma Foto!</h2>
+                        <h2>📸 Carrega no preview para tirar foto!</h2>
                         <mwc-icon-button @click=${this._closeCamera}>
                             <ha-icon icon="mdi:close"></ha-icon>
                         </mwc-icon-button>
@@ -427,7 +451,7 @@ class MorningRoutineCard extends LitElement {
                             </select>
                         </div>
                     ` : ''}
-                    <div class="camera-container">
+                    <div class="camera-container" @click=${() => !this._countdown && this._startCountdown()}>
                         <video id="camera-preview" autoplay playsinline></video>
                         <canvas id="camera-canvas" style="display:none"></canvas>
                         ${this._countdown > 0 ? html`
@@ -436,15 +460,6 @@ class MorningRoutineCard extends LitElement {
                             </div>
                         ` : ''}
                     </div>
-                    <div class="camera-controls">
-                        <mwc-button raised class="capture-button" @click=${this._startCountdown}>
-                            <ha-icon icon="mdi:camera" slot="icon"></ha-icon>
-                            Capturar
-                        </mwc-button>
-                        <mwc-button class="cancel-button" @click=${this._closeCamera}>
-                            Cancelar
-                        </mwc-button>
-                    </div>
                 </div>
             </div>
         `;
@@ -452,11 +467,23 @@ class MorningRoutineCard extends LitElement {
 
     async _loadCameras() {
         try {
+            // First, request permission to get device labels
+            await navigator.mediaDevices.getUserMedia({ video: true });
+
             const devices = await navigator.mediaDevices.enumerateDevices();
             this._availableCameras = devices.filter(device => device.kind === 'videoinput');
+
             if (this._availableCameras.length > 0 && !this._selectedCameraId) {
-                this._selectedCameraId = this._availableCameras[0].deviceId;
+                // Prefer back camera on mobile
+                const backCamera = this._availableCameras.find(cam =>
+                    cam.label.toLowerCase().includes('back') ||
+                    cam.label.toLowerCase().includes('traseira') ||
+                    cam.label.toLowerCase().includes('rear')
+                );
+                this._selectedCameraId = backCamera ? backCamera.deviceId : this._availableCameras[0].deviceId;
             }
+
+            this.requestUpdate();
         } catch (err) {
             console.error("Erro ao enumerar câmeras:", err);
         }
@@ -475,17 +502,42 @@ class MorningRoutineCard extends LitElement {
                 video.srcObject.getTracks().forEach(track => track.stop());
             }
 
+            console.log("[Camera] Starting camera with deviceId:", this._selectedCameraId);
+
+            // Simplified constraints for better Android compatibility
             const constraints = {
-                video: {
-                    deviceId: this._selectedCameraId ? { exact: this._selectedCameraId } : undefined,
-                    width: 640,
-                    height: 480
-                }
+                video: this._selectedCameraId
+                    ? {
+                        deviceId: { exact: this._selectedCameraId },
+                        facingMode: { ideal: 'environment' },
+                        width: { ideal: 1280, max: 1920 },
+                        height: { ideal: 720, max: 1080 }
+                    }
+                    : {
+                        facingMode: { ideal: 'environment' },
+                        width: { ideal: 1280, max: 1920 },
+                        height: { ideal: 720, max: 1080 }
+                    }
             };
 
+            console.log("[Camera] Requesting with constraints:", constraints);
+
             const stream = await navigator.mediaDevices.getUserMedia(constraints);
+            console.log("[Camera] Stream obtained:", stream.getVideoTracks());
+
             if (video) {
                 video.srcObject = stream;
+
+                // Wait for video to be ready (important for Android)
+                await new Promise((resolve) => {
+                    video.onloadedmetadata = () => {
+                        console.log("[Camera] Video ready:", video.videoWidth, "x", video.videoHeight);
+                        video.play().then(() => {
+                            console.log("[Camera] Video playing");
+                            resolve();
+                        }).catch(console.error);
+                    };
+                });
             }
         } catch (err) {
             console.error("Erro de acesso à câmara:", err);
@@ -536,29 +588,15 @@ class MorningRoutineCard extends LitElement {
                         </mwc-icon-button>
                     </div>
                     <div class="audio-recorder-container">
-                        <div class="recording-indicator ${this._isRecording ? 'recording' : ''}">
-                            <ha-icon icon="mdi:microphone"></ha-icon>
+                        <div
+                            class="recording-indicator ${this._isRecording ? 'recording' : ''}"
+                            @click=${() => this._isRecording ? this._stopRecording() : this._startRecording()}>
+                            <ha-icon icon="${this._isRecording ? 'mdi:stop' : 'mdi:microphone'}"></ha-icon>
                             ${this._isRecording ? html`<span class="recording-time">${this._formatTime(this._recordingTime)}</span>` : ''}
                         </div>
                         <p class="audio-hint">
-                            ${this._isRecording ? 'A gravar... Conta o que comeste!' : 'Carrega no botão para começar a gravar'}
+                            ${this._isRecording ? 'Carrega para parar e guardar' : 'Carrega no microfone para gravar'}
                         </p>
-                    </div>
-                    <div class="camera-controls">
-                        ${!this._isRecording ? html`
-                            <mwc-button raised class="record-button" @click=${this._startRecording}>
-                                <ha-icon icon="mdi:record" slot="icon"></ha-icon>
-                                Começar a Gravar
-                            </mwc-button>
-                        ` : html`
-                            <mwc-button raised class="capture-button" @click=${this._stopRecording}>
-                                <ha-icon icon="mdi:stop" slot="icon"></ha-icon>
-                                Parar e Guardar
-                            </mwc-button>
-                        `}
-                        <mwc-button class="cancel-button" @click=${this._closeAudioRecorder}>
-                            Cancelar
-                        </mwc-button>
                     </div>
                 </div>
             </div>
@@ -661,6 +699,30 @@ class MorningRoutineCard extends LitElement {
         return `${mins}:${secs.toString().padStart(2, '0')}`;
     }
 
+    _toggleAudio(childName) {
+        const audio = this.shadowRoot.getElementById(`activity-audio-${childName}`);
+        if (!audio) return;
+
+        if (this._playingAudioChild === childName) {
+            // Pause current audio
+            audio.pause();
+            this._playingAudioChild = null;
+        } else {
+            // Stop any other playing audio
+            if (this._playingAudioChild) {
+                const currentAudio = this.shadowRoot.getElementById(`activity-audio-${this._playingAudioChild}`);
+                if (currentAudio) {
+                    currentAudio.pause();
+                    currentAudio.currentTime = 0;
+                }
+            }
+            // Play this audio
+            audio.play();
+            this._playingAudioChild = childName;
+        }
+        this.requestUpdate();
+    }
+
     _onAudioPlay(childName) {
         // If another audio is playing, stop it
         if (this._playingAudioChild && this._playingAudioChild !== childName) {
@@ -685,13 +747,29 @@ class MorningRoutineCard extends LitElement {
 
         if (!video || !canvas) return;
 
-        const context = canvas.getContext("2d");
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        context.drawImage(video, 0, 0);
+        // Ensure video is ready
+        if (video.readyState !== video.HAVE_ENOUGH_DATA) {
+            console.warn("Video not ready, waiting...");
+            await new Promise(resolve => setTimeout(resolve, 500));
+        }
 
-        // Convert to base64 (remove data:image/jpeg;base64, prefix)
-        const photoData = canvas.toDataURL("image/jpeg", 0.8).split(",")[1];
+        const context = canvas.getContext("2d");
+
+        // Use actual video dimensions
+        const width = video.videoWidth || video.clientWidth;
+        const height = video.videoHeight || video.clientHeight;
+
+        canvas.width = width;
+        canvas.height = height;
+
+        // Clear canvas first
+        context.clearRect(0, 0, width, height);
+
+        // Draw video frame
+        context.drawImage(video, 0, 0, width, height);
+
+        // Convert to base64 with higher quality (remove data:image/jpeg;base64, prefix)
+        const photoData = canvas.toDataURL("image/jpeg", 0.95).split(",")[1];
 
         // Stop camera
         video.srcObject.getTracks().forEach(track => track.stop());
@@ -781,50 +859,30 @@ class MorningRoutineCard extends LitElement {
     _renderPhotoModal() {
         if (!this._showPhoto || !this._photoChild) return html``;
 
-        const isAudio = this._currentActivity === 'breakfast';
-        const hasContent = isAudio ? this._photoChild.audio_recording : this._photoChild.photo_path;
+        const hasContent = this._photoChild.photo_path;
 
         return html`
             <div class="modal-overlay" @click=${this._closePhotoModal}>
                 <div class="photo-modal" @click=${(e) => e.stopPropagation()}>
                     <div class="photo-modal-header">
-                        <h2>${isAudio ? '🎤' : '📸'} ${isAudio ? 'Áudio' : 'Foto'} - ${this._photoChild.name}</h2>
+                        <h2>📸 Foto - ${this._photoChild.name}</h2>
                         <mwc-icon-button @click=${this._closePhotoModal}>
                             <ha-icon icon="mdi:close"></ha-icon>
                         </mwc-icon-button>
                     </div>
                     <div class="photo-modal-content">
-                        ${isAudio ? html`
-                            ${hasContent ? html`
-                                <div class="audio-preview-container">
-                                    <ha-icon icon="mdi:microphone" class="audio-preview-icon"></ha-icon>
-                                    <audio
-                                        id="preview-audio-player"
-                                        controls
-                                        autoplay>
-                                        <source src="/local/morning_routine_photos/${this._getFilename(this._photoChild.audio_recording)}" type="audio/webm">
-                                    </audio>
-                                </div>
-                            ` : ''}
-                        ` : html`
-                            ${hasContent ? html`
-                                <img src="/local/morning_routine_photos/${this._getFilename(this._photoChild.photo_path)}"
-                                     alt="Foto de ${this._photoChild.name}" />
-                            ` : ''}
-                        `}
+                        ${hasContent ? html`
+                            <img src="/local/morning_routine_photos/${this._getFilename(this._photoChild.photo_path)}"
+                                 alt="Foto de ${this._photoChild.name}" />
+                        ` : ''}
                     </div>
                     <div class="photo-modal-actions">
                         <mwc-button
                             raised
                             class="retake-button"
                             @click=${this._retakeMedia}>
-                            <ha-icon icon="${isAudio ? 'mdi:record' : 'mdi:camera'}" slot="icon"></ha-icon>
-                            ${isAudio ? 'Gravar Novamente' : 'Tirar Outra Foto'}
-                        </mwc-button>
-                        <mwc-button
-                            class="cancel-button"
-                            @click=${this._closePhotoModal}>
-                            Fechar
+                            <ha-icon icon="mdi:camera" slot="icon"></ha-icon>
+                            Tirar Outra Foto
                         </mwc-button>
                     </div>
                 </div>
@@ -836,16 +894,12 @@ class MorningRoutineCard extends LitElement {
         // Close preview modal
         this._showPhoto = false;
 
-        // Open capture modal based on activity type
-        if (this._currentActivity === 'breakfast') {
-            this._showAudioRecorder = true;
-        } else {
-            this._showCamera = true;
-            this.updateComplete.then(async () => {
-                await this._loadCameras();
-                this._startCamera();
-            });
-        }
+        // Open camera modal
+        this._showCamera = true;
+        this.updateComplete.then(async () => {
+            await this._loadCameras();
+            this._startCamera();
+        });
     }
 
     _renderRewardModal() {
@@ -1036,6 +1090,7 @@ class MorningRoutineCard extends LitElement {
         .activities-grid {
             display: flex;
             flex-direction: row;
+            flex-wrap: wrap;
             gap: 8px;
             width: 100%;
         }
@@ -1044,19 +1099,72 @@ class MorningRoutineCard extends LitElement {
             gap: 6px;
         }
 
+        /* Responsive layout for mobile */
+        @media (max-width: 768px) {
+            .activities-grid {
+                gap: 6px;
+            }
+
+            .activity-item {
+                flex: 1 1 calc(50% - 6px);
+                min-width: calc(50% - 6px);
+                max-width: calc(50% - 6px);
+            }
+        }
+
+        @media (max-width: 480px) {
+            .activities-grid {
+                gap: 4px;
+            }
+
+            .activity-item {
+                flex: 1 1 calc(50% - 4px);
+                min-width: calc(50% - 4px);
+                max-width: calc(50% - 4px);
+                height: 160px;
+            }
+
+            .activity-icon {
+                font-size: 42px;
+                margin-bottom: 4px;
+            }
+
+            .activity-icon ha-icon {
+                width: 42px;
+                height: 42px;
+            }
+
+            .activity-item.has-media .activity-icon {
+                font-size: 34px;
+            }
+
+            .activity-item.has-media .activity-icon ha-icon {
+                width: 34px;
+                height: 34px;
+            }
+
+            .activity-name {
+                font-size: 12px;
+            }
+
+            .activity-item.has-media .activity-name {
+                font-size: 11px;
+            }
+        }
+
         .activity-item {
             position: relative;
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: center;
-            padding: 20px 12px;
+            justify-content: flex-start;
+            padding: 12px 8px;
             border-radius: 12px;
             background: var(--card-background-color);
             border: 3px solid #e0e0e0;
             cursor: pointer;
             transition: all 0.3s ease;
-            min-height: 140px;
+            height: 180px;
             flex: 1;
             min-width: 0;
         }
@@ -1079,14 +1187,24 @@ class MorningRoutineCard extends LitElement {
         }
 
         .activity-icon {
-            font-size: 64px;
-            margin-bottom: 12px;
+            font-size: 56px;
+            margin-bottom: 8px;
             color: var(--primary-text-color);
         }
 
         .activity-icon ha-icon {
-            width: 64px;
-            height: 64px;
+            width: 56px;
+            height: 56px;
+        }
+
+        .activity-item.has-media .activity-icon {
+            font-size: 44px;
+            margin-bottom: 6px;
+        }
+
+        .activity-item.has-media .activity-icon ha-icon {
+            width: 44px;
+            height: 44px;
         }
 
         .activity-item.completed .activity-icon {
@@ -1094,13 +1212,19 @@ class MorningRoutineCard extends LitElement {
         }
 
         .activity-name {
-            font-size: 16px;
+            font-size: 14px;
             font-weight: 600;
             text-align: center;
-            line-height: 1.3;
+            line-height: 1.2;
             word-wrap: break-word;
             overflow-wrap: break-word;
             hyphens: auto;
+            margin-bottom: 6px;
+        }
+
+        .activity-item.has-media .activity-name {
+            font-size: 12px;
+            margin-bottom: 4px;
         }
 
         .check-mark {
@@ -1113,6 +1237,62 @@ class MorningRoutineCard extends LitElement {
         .check-mark ha-icon {
             width: 32px;
             height: 32px;
+        }
+
+        /* Media Preview in Activity Tiles */
+        .activity-media-preview {
+            margin-top: auto;
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .activity-media-preview img {
+            width: 80px;
+            height: 50px;
+            object-fit: cover;
+            border-radius: 6px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .activity-media-preview img:hover {
+            transform: scale(1.05);
+        }
+
+        .activity-media-preview.audio {
+            padding: 0;
+        }
+
+        .audio-play-button {
+            width: 80px;
+            height: 50px;
+            border-radius: 6px;
+            background: #4CAF50;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            transition: all 0.2s;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .audio-play-button:hover {
+            background: #45a049;
+            transform: scale(1.05);
+        }
+
+        .audio-play-button:active {
+            transform: scale(0.95);
+        }
+
+        .audio-play-button ha-icon {
+            width: 28px;
+            height: 28px;
         }
 
         .button-container {
@@ -1260,6 +1440,11 @@ class MorningRoutineCard extends LitElement {
         .camera-container {
             padding: 16px;
             position: relative;
+            cursor: pointer;
+        }
+
+        .camera-container:hover {
+            opacity: 0.95;
         }
 
         #camera-preview {
@@ -1332,6 +1517,17 @@ class MorningRoutineCard extends LitElement {
             border-radius: 50%;
             background: #f5f5f5;
             border: 4px solid #e0e0e0;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .recording-indicator:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        .recording-indicator:active {
+            transform: scale(0.95);
         }
 
         .recording-indicator ha-icon {
@@ -1525,6 +1721,7 @@ class MorningRoutineCard extends LitElement {
             overflow: hidden;
         }
 
+
         .photo-modal-header {
             display: flex;
             justify-content: space-between;
@@ -1563,24 +1760,6 @@ class MorningRoutineCard extends LitElement {
         .retake-button {
             --mdc-theme-primary: #FF9800;
             --mdc-theme-on-primary: white;
-        }
-
-        .audio-preview-container {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 16px;
-            padding: 32px;
-        }
-
-        .audio-preview-icon {
-            font-size: 80px;
-            color: #4CAF50;
-        }
-
-        .audio-preview-container audio {
-            width: 100%;
-            max-width: 400px;
         }
 
         /* Confirm Reset Modal */
@@ -1668,7 +1847,7 @@ window.customCards.push({
 });
 
 console.info(
-    `%c MORNING-ROUTINE-CARD %c 2.4.0 - Enhanced UX with Previews & Camera Selection `,
+    `%c MORNING-ROUTINE-CARD %c 2.6.1 - Add close button to photo modal `,
     "color: white; font-weight: bold; background: #4CAF50",
     "color: white; font-weight: bold; background: #2196F3"
 );
