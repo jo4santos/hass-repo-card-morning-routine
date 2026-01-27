@@ -235,16 +235,18 @@ class MorningRoutineCard extends LitElement {
 
         return html`
             <div class="timer-section">
-                <div class="global-timer" style="background-color: ${timerColor}">
-                    ${timeData.total > 0 ? html`
-                        <ha-icon icon="mdi:clock-outline"></ha-icon>
-                        <span class="global-timer-text">Tempo até à escola: ${timeData.minutes}:${timeData.seconds.toString().padStart(2, '0')}</span>
-                    ` : html`
-                        <ha-icon icon="mdi:school"></ha-icon>
-                        <span class="global-timer-text">Hora da escola!</span>
-                    `}
+                <div class="timer-weather-row">
+                    <div class="global-timer" style="background-color: ${timerColor}">
+                        ${timeData.total > 0 ? html`
+                            <ha-icon icon="mdi:clock-outline"></ha-icon>
+                            <span class="global-timer-text">Tempo até à escola: ${timeData.minutes}:${timeData.seconds.toString().padStart(2, '0')}</span>
+                        ` : html`
+                            <ha-icon icon="mdi:school"></ha-icon>
+                            <span class="global-timer-text">Hora da escola!</span>
+                        `}
+                    </div>
+                    ${this._renderWeather()}
                 </div>
-                ${this._renderWeather()}
                 <div class="announcement-buttons">
                     <button class="announcement-button" @click=${this._announceTimeRemaining} title="Anunciar tempo restante">
                         <ha-icon icon="mdi:clock-alert"></ha-icon>
@@ -341,19 +343,10 @@ class MorningRoutineCard extends LitElement {
 
         return html`
             <div class="weather-section">
-                <div class="weather-icon">
-                    <ha-icon icon="${weatherIcon}" style="color: ${tempColor};"></ha-icon>
-                </div>
-                <div class="weather-info">
-                    <div class="weather-temp" style="color: ${tempColor};">
-                        ${temperature}°C
-                    </div>
-                    <div class="weather-description">
-                        ${tempDescription}
-                    </div>
-                    <div class="weather-condition">
-                        ${conditionText}
-                    </div>
+                <ha-icon icon="${weatherIcon}" style="color: ${tempColor};"></ha-icon>
+                <div class="weather-text">
+                    <span class="weather-temp" style="color: ${tempColor};">${temperature}°C</span>
+                    <span class="weather-description">${tempDescription}</span>
                 </div>
             </div>
         `;
@@ -1313,6 +1306,13 @@ class MorningRoutineCard extends LitElement {
             margin-bottom: 16px;
         }
 
+        .timer-weather-row {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 12px;
+            align-items: stretch;
+        }
+
         .global-timer {
             display: flex;
             align-items: center;
@@ -1320,11 +1320,12 @@ class MorningRoutineCard extends LitElement {
             gap: 12px;
             padding: 16px;
             border-radius: 12px;
-            margin-bottom: 12px;
             color: white;
             font-size: 24px;
             font-weight: bold;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+            flex: 1;
+            min-width: 0;
         }
 
         .global-timer ha-icon {
@@ -1339,49 +1340,40 @@ class MorningRoutineCard extends LitElement {
         .weather-section {
             display: flex;
             align-items: center;
-            justify-content: center;
-            gap: 16px;
-            padding: 12px;
-            margin-bottom: 12px;
+            gap: 8px;
+            padding: 12px 16px;
             background: var(--card-background-color);
             border: 2px solid var(--divider-color);
             border-radius: 12px;
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            flex-shrink: 0;
         }
 
-        .weather-icon {
-            display: flex;
-            align-items: center;
-            justify-content: center;
+        .weather-section ha-icon {
+            width: 32px;
+            height: 32px;
+            flex-shrink: 0;
         }
 
-        .weather-icon ha-icon {
-            width: 48px;
-            height: 48px;
-        }
-
-        .weather-info {
+        .weather-text {
             display: flex;
             flex-direction: column;
-            gap: 4px;
+            gap: 2px;
+            min-width: 0;
         }
 
         .weather-temp {
-            font-size: 28px;
+            font-size: 18px;
             font-weight: bold;
-            line-height: 1;
+            line-height: 1.2;
+            white-space: nowrap;
         }
 
         .weather-description {
-            font-size: 18px;
-            font-weight: 600;
-            color: var(--primary-text-color);
-        }
-
-        .weather-condition {
-            font-size: 14px;
+            font-size: 13px;
+            font-weight: 500;
             color: var(--secondary-text-color);
-            text-transform: capitalize;
+            white-space: nowrap;
         }
 
         .announcement-buttons {
@@ -2515,7 +2507,7 @@ window.customCards.push({
 });
 
 console.info(
-    `%c MORNING-ROUTINE-CARD %c 2.8.11 - Add weather section with temperature descriptions `,
+    `%c MORNING-ROUTINE-CARD %c 2.8.12 - Make weather section compact and inline with timer `,
     "color: white; font-weight: bold; background: #4CAF50",
     "color: white; font-weight: bold; background: #2196F3"
 );
