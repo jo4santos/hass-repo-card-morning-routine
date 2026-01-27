@@ -244,6 +244,7 @@ class MorningRoutineCard extends LitElement {
                         <span class="global-timer-text">Hora da escola!</span>
                     `}
                 </div>
+                ${this._renderWeather()}
                 <div class="announcement-buttons">
                     <button class="announcement-button" @click=${this._announceTimeRemaining} title="Anunciar tempo restante">
                         <ha-icon icon="mdi:clock-alert"></ha-icon>
@@ -257,6 +258,102 @@ class MorningRoutineCard extends LitElement {
                         <ha-icon icon="mdi:calendar-star"></ha-icon>
                         <span>Completo</span>
                     </button>
+                </div>
+            </div>
+        `;
+    }
+
+    _renderWeather() {
+        if (!this._hass || !this._config.weather_entity) {
+            return '';
+        }
+
+        const weatherEntity = this._hass.states[this._config.weather_entity];
+        if (!weatherEntity) {
+            return '';
+        }
+
+        const temperature = weatherEntity.attributes.temperature;
+        const condition = weatherEntity.state;
+
+        // Get temperature description for Esmoriz, Portugal climate
+        const getTempDescription = (temp) => {
+            if (temp < 10) return 'está frio';
+            if (temp < 15) return 'está fresco';
+            if (temp < 20) return 'está ameno';
+            if (temp < 25) return 'está agradável';
+            return 'está quente';
+        };
+
+        // Get weather icon based on condition
+        const getWeatherIcon = (condition) => {
+            const icons = {
+                'clear-night': 'mdi:weather-night',
+                'cloudy': 'mdi:weather-cloudy',
+                'fog': 'mdi:weather-fog',
+                'hail': 'mdi:weather-hail',
+                'lightning': 'mdi:weather-lightning',
+                'lightning-rainy': 'mdi:weather-lightning-rainy',
+                'partlycloudy': 'mdi:weather-partly-cloudy',
+                'pouring': 'mdi:weather-pouring',
+                'rainy': 'mdi:weather-rainy',
+                'snowy': 'mdi:weather-snowy',
+                'snowy-rainy': 'mdi:weather-snowy-rainy',
+                'sunny': 'mdi:weather-sunny',
+                'windy': 'mdi:weather-windy',
+                'windy-variant': 'mdi:weather-windy-variant',
+            };
+            return icons[condition] || 'mdi:weather-cloudy';
+        };
+
+        // Get temperature color
+        const getTempColor = (temp) => {
+            if (temp < 10) return '#2196F3'; // Blue - cold
+            if (temp < 15) return '#00BCD4'; // Cyan - cool
+            if (temp < 20) return '#4CAF50'; // Green - mild
+            if (temp < 25) return '#FFC107'; // Yellow - pleasant
+            return '#FF5722'; // Orange-red - hot
+        };
+
+        const tempDescription = getTempDescription(temperature);
+        const weatherIcon = getWeatherIcon(condition);
+        const tempColor = getTempColor(temperature);
+
+        // Translate condition
+        const conditionTranslations = {
+            'clear-night': 'céu limpo',
+            'cloudy': 'nublado',
+            'fog': 'nevoeiro',
+            'hail': 'granizo',
+            'lightning': 'trovoada',
+            'lightning-rainy': 'trovoada com chuva',
+            'partlycloudy': 'parcialmente nublado',
+            'pouring': 'chuva forte',
+            'rainy': 'chuvoso',
+            'snowy': 'neve',
+            'snowy-rainy': 'chuva com neve',
+            'sunny': 'sol',
+            'windy': 'ventoso',
+            'windy-variant': 'ventoso',
+            'exceptional': 'excecional',
+        };
+        const conditionText = conditionTranslations[condition] || condition;
+
+        return html`
+            <div class="weather-section">
+                <div class="weather-icon">
+                    <ha-icon icon="${weatherIcon}" style="color: ${tempColor};"></ha-icon>
+                </div>
+                <div class="weather-info">
+                    <div class="weather-temp" style="color: ${tempColor};">
+                        ${temperature}°C
+                    </div>
+                    <div class="weather-description">
+                        ${tempDescription}
+                    </div>
+                    <div class="weather-condition">
+                        ${conditionText}
+                    </div>
                 </div>
             </div>
         `;
@@ -1237,6 +1334,54 @@ class MorningRoutineCard extends LitElement {
 
         .global-timer-text {
             font-family: monospace;
+        }
+
+        .weather-section {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            padding: 12px;
+            margin-bottom: 12px;
+            background: var(--card-background-color);
+            border: 2px solid var(--divider-color);
+            border-radius: 12px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .weather-icon {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .weather-icon ha-icon {
+            width: 48px;
+            height: 48px;
+        }
+
+        .weather-info {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .weather-temp {
+            font-size: 28px;
+            font-weight: bold;
+            line-height: 1;
+        }
+
+        .weather-description {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--primary-text-color);
+        }
+
+        .weather-condition {
+            font-size: 14px;
+            color: var(--secondary-text-color);
+            text-transform: capitalize;
         }
 
         .announcement-buttons {
@@ -2370,7 +2515,7 @@ window.customCards.push({
 });
 
 console.info(
-    `%c MORNING-ROUTINE-CARD %c 2.8.2 - Simplify audio loading to fix loop issues `,
+    `%c MORNING-ROUTINE-CARD %c 2.8.11 - Add weather section with temperature descriptions `,
     "color: white; font-weight: bold; background: #4CAF50",
     "color: white; font-weight: bold; background: #2196F3"
 );
