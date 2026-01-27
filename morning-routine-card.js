@@ -1721,8 +1721,9 @@ class MorningRoutineCard extends LitElement {
 
         .activity-media-preview img {
             width: 80px;
-            height: 50px;
+            height: 70px;
             object-fit: cover;
+            object-position: top;
             border-radius: 6px;
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
             cursor: pointer;
@@ -1739,7 +1740,7 @@ class MorningRoutineCard extends LitElement {
 
         .audio-play-button {
             width: 80px;
-            height: 50px;
+            height: 70px;
             border-radius: 6px;
             background: #4CAF50;
             border: none;
@@ -2518,7 +2519,7 @@ window.customCards.push({
 });
 
 console.info(
-    `%c MORNING-ROUTINE-CARD %c 2.8.13 - Colored weather background with condition text `,
+    `%c MORNING-ROUTINE-CARD %c 2.8.14 - Taller photo/audio buttons, photo aligned to top `,
     "color: white; font-weight: bold; background: #4CAF50",
     "color: white; font-weight: bold; background: #2196F3"
 );
