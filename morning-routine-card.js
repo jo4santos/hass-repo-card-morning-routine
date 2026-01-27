@@ -1533,15 +1533,8 @@ class MorningRoutineCard extends LitElement {
 
         .button-container {
             margin-top: 16px;
-            padding: 20px;
-            text-align: center;
-            background: linear-gradient(135deg, rgba(255, 152, 0, 0.1) 0%, rgba(255, 193, 7, 0.1) 100%);
-            border: 2px solid #FFB74D;
-            border-radius: 12px;
-            box-shadow: 0 4px 12px rgba(255, 152, 0, 0.2);
             display: flex;
-            flex-direction: column;
-            gap: 8px;
+            justify-content: center;
             animation: slideIn 0.5s ease-out;
         }
 
@@ -1557,29 +1550,32 @@ class MorningRoutineCard extends LitElement {
         }
 
         .button-container mwc-button {
-            width: 100%;
-            --mdc-shape-small: 4px;
-            --mdc-button-horizontal-padding: 16px;
+            --mdc-shape-small: 24px;
+            --mdc-button-horizontal-padding: 32px;
+            height: 56px;
+            font-size: 18px;
         }
 
         .button-container mwc-button ha-icon {
-            --mdc-icon-size: 24px;
-            width: 24px;
-            height: 24px;
-            margin-right: 8px;
+            --mdc-icon-size: 28px;
+            width: 28px;
+            height: 28px;
+            margin-right: 12px;
         }
 
         .reward-button {
             --mdc-theme-primary: #FF9800;
             --mdc-theme-on-primary: white;
             animation: pulse 2s infinite;
-            border: 3px solid #FFB74D !important;
-            box-shadow: 0 4px 12px rgba(255, 152, 0, 0.4) !important;
+            box-shadow: 0 6px 20px rgba(255, 152, 0, 0.5) !important;
             font-weight: bold !important;
+            text-transform: uppercase;
+            letter-spacing: 1px;
         }
 
         .reward-button:hover {
-            box-shadow: 0 6px 16px rgba(255, 152, 0, 0.6) !important;
+            box-shadow: 0 8px 24px rgba(255, 152, 0, 0.7) !important;
+            transform: translateY(-2px);
         }
 
         .audio-button {
@@ -1617,8 +1613,14 @@ class MorningRoutineCard extends LitElement {
         }
 
         @keyframes pulse {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.02); }
+            0%, 100% {
+                transform: scale(1);
+                box-shadow: 0 6px 20px rgba(255, 152, 0, 0.5);
+            }
+            50% {
+                transform: scale(1.05);
+                box-shadow: 0 8px 28px rgba(255, 152, 0, 0.8);
+            }
         }
 
         .reward-preview {
