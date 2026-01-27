@@ -972,7 +972,7 @@ class MorningRoutineCard extends LitElement {
             <div class="modal-overlay" @click=${this._closeRewardModal}>
                 <div class="reward-modal" @click=${(e) => e.stopPropagation()}>
                     <div class="reward-modal-header">
-                        <h2>🎉 Recompensa d${this._getChildArticle(this._rewardChild.name)} ${this._rewardChild.name}! 🎉</h2>
+                        <h2>🎉 Recompensa d${this._getChildArticle(this._rewardChild.name).toLowerCase()} ${this._rewardChild.name}! 🎉</h2>
                         <mwc-icon-button @click=${this._closeRewardModal}>
                             <ha-icon icon="mdi:close"></ha-icon>
                         </mwc-icon-button>
