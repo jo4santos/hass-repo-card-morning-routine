@@ -236,14 +236,30 @@ class MorningRoutineCard extends LitElement {
         const timerColor = this._getTimerColor(timeData.total);
 
         return html`
-            <div class="global-timer" style="background-color: ${timerColor}">
-                ${timeData.total > 0 ? html`
-                    <ha-icon icon="mdi:clock-outline"></ha-icon>
-                    <span class="global-timer-text">Tempo até à escola: ${timeData.minutes}:${timeData.seconds.toString().padStart(2, '0')}</span>
-                ` : html`
-                    <ha-icon icon="mdi:school"></ha-icon>
-                    <span class="global-timer-text">Hora da escola!</span>
-                `}
+            <div class="timer-section">
+                <div class="global-timer" style="background-color: ${timerColor}">
+                    ${timeData.total > 0 ? html`
+                        <ha-icon icon="mdi:clock-outline"></ha-icon>
+                        <span class="global-timer-text">Tempo até à escola: ${timeData.minutes}:${timeData.seconds.toString().padStart(2, '0')}</span>
+                    ` : html`
+                        <ha-icon icon="mdi:school"></ha-icon>
+                        <span class="global-timer-text">Hora da escola!</span>
+                    `}
+                </div>
+                <div class="announcement-buttons">
+                    <button class="announcement-button" @click=${this._announceTimeRemaining} title="Anunciar tempo restante">
+                        <ha-icon icon="mdi:clock-alert"></ha-icon>
+                        <span>Tempo</span>
+                    </button>
+                    <button class="announcement-button" @click=${this._announceTimeWithWeather} title="Anunciar tempo + meteorologia">
+                        <ha-icon icon="mdi:weather-partly-cloudy"></ha-icon>
+                        <span>Tempo + Meteo</span>
+                    </button>
+                    <button class="announcement-button" @click=${this._announceTimeWithActivities} title="Anunciar tempo + meteorologia + atividades">
+                        <ha-icon icon="mdi:calendar-star"></ha-icon>
+                        <span>Completo</span>
+                    </button>
+                </div>
             </div>
         `;
     }
@@ -864,6 +880,30 @@ class MorningRoutineCard extends LitElement {
         this._currentRewardQuote = null;
     }
 
+    async _announceTimeRemaining() {
+        try {
+            await this._hass.callService('morning_routine', 'announce_time_remaining', {});
+        } catch (error) {
+            console.error('Failed to announce time remaining:', error);
+        }
+    }
+
+    async _announceTimeWithWeather() {
+        try {
+            await this._hass.callService('morning_routine', 'announce_time_with_weather', {});
+        } catch (error) {
+            console.error('Failed to announce time with weather:', error);
+        }
+    }
+
+    async _announceTimeWithActivities() {
+        try {
+            await this._hass.callService('morning_routine', 'announce_time_with_activities', {});
+        } catch (error) {
+            console.error('Failed to announce time with activities:', error);
+        }
+    }
+
     _showPhotoModal(child) {
         this._photoChild = child;
         this._showPhoto = true;
@@ -1170,6 +1210,10 @@ class MorningRoutineCard extends LitElement {
             padding: 16px;
         }
 
+        .timer-section {
+            margin-bottom: 16px;
+        }
+
         .global-timer {
             display: flex;
             align-items: center;
@@ -1177,7 +1221,7 @@ class MorningRoutineCard extends LitElement {
             gap: 12px;
             padding: 16px;
             border-radius: 12px;
-            margin-bottom: 16px;
+            margin-bottom: 12px;
             color: white;
             font-size: 24px;
             font-weight: bold;
@@ -1191,6 +1235,47 @@ class MorningRoutineCard extends LitElement {
 
         .global-timer-text {
             font-family: monospace;
+        }
+
+        .announcement-buttons {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+        }
+
+        .announcement-button {
+            flex: 1;
+            max-width: 200px;
+            padding: 12px 16px;
+            background: var(--card-background-color);
+            border: 2px solid var(--primary-color);
+            border-radius: 8px;
+            color: var(--primary-text-color);
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .announcement-button:hover {
+            background: var(--primary-color);
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .announcement-button:active {
+            transform: translateY(0);
+        }
+
+        .announcement-button ha-icon {
+            width: 24px;
+            height: 24px;
         }
 
         .children-container {
@@ -1550,31 +1635,29 @@ class MorningRoutineCard extends LitElement {
         }
 
         .button-container mwc-button {
-            --mdc-shape-small: 24px;
-            --mdc-button-horizontal-padding: 32px;
-            height: 56px;
-            font-size: 18px;
+            --mdc-shape-small: 12px;
+            --mdc-button-horizontal-padding: 24px;
+            height: 48px;
+            font-size: 15px;
         }
 
         .button-container mwc-button ha-icon {
-            --mdc-icon-size: 28px;
-            width: 28px;
-            height: 28px;
-            margin-right: 12px;
+            --mdc-icon-size: 20px;
+            width: 20px;
+            height: 20px;
+            margin-right: 8px;
         }
 
         .reward-button {
             --mdc-theme-primary: #FF9800;
             --mdc-theme-on-primary: white;
             animation: pulse 2s infinite;
-            box-shadow: 0 6px 20px rgba(255, 152, 0, 0.5) !important;
-            font-weight: bold !important;
-            text-transform: uppercase;
-            letter-spacing: 1px;
+            font-weight: 600 !important;
+            box-shadow: 0 2px 8px rgba(255, 152, 0, 0.3) !important;
         }
 
         .reward-button:hover {
-            box-shadow: 0 8px 24px rgba(255, 152, 0, 0.7) !important;
+            box-shadow: 0 4px 12px rgba(255, 152, 0, 0.5) !important;
             transform: translateY(-2px);
         }
 
@@ -1615,11 +1698,11 @@ class MorningRoutineCard extends LitElement {
         @keyframes pulse {
             0%, 100% {
                 transform: scale(1);
-                box-shadow: 0 6px 20px rgba(255, 152, 0, 0.5);
+                box-shadow: 0 2px 8px rgba(255, 152, 0, 0.3);
             }
             50% {
-                transform: scale(1.05);
-                box-shadow: 0 8px 28px rgba(255, 152, 0, 0.8);
+                transform: scale(1.03);
+                box-shadow: 0 4px 12px rgba(255, 152, 0, 0.5);
             }
         }
 
