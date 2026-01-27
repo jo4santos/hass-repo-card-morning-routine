@@ -872,6 +872,16 @@ class MorningRoutineCard extends LitElement {
         this._currentRewardQuote = null;
     }
 
+    _getChildArticle(childName) {
+        // Return correct article based on child's gender
+        const childConfig = {
+            'Duarte': { article: 'O', gender: 'male' },
+            'Leonor': { article: 'A', gender: 'female' }
+        };
+        const config = childConfig[childName] || { article: 'A', gender: 'female' };
+        return config.article;
+    }
+
     async _announceTimeRemaining() {
         try {
             await this._hass.callService('morning_routine', 'announce_time_remaining', {});
@@ -962,7 +972,7 @@ class MorningRoutineCard extends LitElement {
             <div class="modal-overlay" @click=${this._closeRewardModal}>
                 <div class="reward-modal" @click=${(e) => e.stopPropagation()}>
                     <div class="reward-modal-header">
-                        <h2>🎉 Recompensa do ${this._rewardChild.name}! 🎉</h2>
+                        <h2>🎉 Recompensa d${this._getChildArticle(this._rewardChild.name)} ${this._rewardChild.name}! 🎉</h2>
                         <mwc-icon-button @click=${this._closeRewardModal}>
                             <ha-icon icon="mdi:close"></ha-icon>
                         </mwc-icon-button>
