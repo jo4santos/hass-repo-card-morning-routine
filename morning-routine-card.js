@@ -156,8 +156,6 @@ class MorningRoutineCard extends LitElement {
 
                 // Check if last_updated changed (indicates state update)
                 if (oldEntity.last_updated !== newEntity.last_updated) {
-                    console.log(`[State Change] ${childConfig.entity} updated at ${newEntity.last_updated}`);
-                    console.log(`[State Change] Activities:`, JSON.stringify(newEntity.attributes?.activities || []));
                     hasChanges = true;
                     break;
                 }
@@ -365,9 +363,6 @@ class MorningRoutineCard extends LitElement {
         const freshActivity = freshActivities.find(a => a.id === activity.id);
         const isCompleted = freshActivity ? freshActivity.completed : false;
 
-        // Log ALL activities during render to track state
-        console.log(`[Render ${new Date().toISOString()}] ${child.name}/${activity.id}: completed=${isCompleted}, last_modified=${freshActivity?.last_modified || 'N/A'}`);
-
         // Check if activity has media
         const hasPhoto = activity.id === 'dressed' && child.photo_path;
         const hasAudio = activity.id === 'breakfast' && child.audio_recording;
@@ -536,7 +531,7 @@ class MorningRoutineCard extends LitElement {
                 video.srcObject.getTracks().forEach(track => track.stop());
             }
 
-            console.log("[Camera] Starting camera with deviceId:", this._selectedCameraId);
+            // console.log("[Camera] Starting camera with deviceId:", this._selectedCameraId);
 
             // Simplified constraints for better Android compatibility
             const constraints = {
@@ -554,10 +549,10 @@ class MorningRoutineCard extends LitElement {
                     }
             };
 
-            console.log("[Camera] Requesting with constraints:", constraints);
+            // console.log("[Camera] Requesting with constraints:", constraints);
 
             const stream = await navigator.mediaDevices.getUserMedia(constraints);
-            console.log("[Camera] Stream obtained:", stream.getVideoTracks());
+            // console.log("[Camera] Stream obtained:", stream.getVideoTracks());
 
             if (video) {
                 video.srcObject = stream;
@@ -565,9 +560,9 @@ class MorningRoutineCard extends LitElement {
                 // Wait for video to be ready (important for Android)
                 await new Promise((resolve) => {
                     video.onloadedmetadata = () => {
-                        console.log("[Camera] Video ready:", video.videoWidth, "x", video.videoHeight);
+                        // console.log("[Camera] Video ready:", video.videoWidth, "x", video.videoHeight);
                         video.play().then(() => {
-                            console.log("[Camera] Video playing");
+                            // console.log("[Camera] Video playing");
                             resolve();
                         }).catch(console.error);
                     };
