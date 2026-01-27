@@ -288,13 +288,10 @@ class MorningRoutineCard extends LitElement {
 
                 ${allComplete ? html`
                     <div class="button-container">
-                        <mwc-button
-                            class="reward-button"
-                            raised
-                            @click=${() => this._showRewardModal(child)}>
-                            <ha-icon icon="mdi:trophy" slot="icon"></ha-icon>
-                            Ver Recompensa
-                        </mwc-button>
+                        <button class="reward-button" @click=${() => this._showRewardModal(child)}>
+                            <ha-icon icon="mdi:trophy"></ha-icon>
+                            <span>Ver Recompensa</span>
+                        </button>
                     </div>
                 ` : ''}
             </div>
@@ -1629,31 +1626,37 @@ class MorningRoutineCard extends LitElement {
             }
         }
 
-        .button-container mwc-button {
-            --mdc-shape-small: 12px;
-            --mdc-button-horizontal-padding: 24px;
-            height: 48px;
-            font-size: 15px;
-        }
-
-        .button-container mwc-button ha-icon {
-            --mdc-icon-size: 20px;
-            width: 20px;
-            height: 20px;
-            margin-right: 8px;
-        }
-
         .reward-button {
-            --mdc-theme-primary: #FF9800;
-            --mdc-theme-on-primary: white;
+            padding: 12px 24px;
+            background: #FF9800;
+            border: 2px solid #FF9800;
+            border-radius: 8px;
+            color: white;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s;
+            box-shadow: 0 2px 8px rgba(255, 152, 0, 0.3);
             animation: pulse 2s infinite;
-            font-weight: 600 !important;
-            box-shadow: 0 2px 8px rgba(255, 152, 0, 0.3) !important;
         }
 
         .reward-button:hover {
-            box-shadow: 0 4px 12px rgba(255, 152, 0, 0.5) !important;
+            background: #FB8C00;
+            border-color: #FB8C00;
             transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(255, 152, 0, 0.5);
+        }
+
+        .reward-button:active {
+            transform: translateY(0);
+        }
+
+        .reward-button ha-icon {
+            width: 24px;
+            height: 24px;
         }
 
         .audio-button {
@@ -1692,11 +1695,9 @@ class MorningRoutineCard extends LitElement {
 
         @keyframes pulse {
             0%, 100% {
-                transform: scale(1);
                 box-shadow: 0 2px 8px rgba(255, 152, 0, 0.3);
             }
             50% {
-                transform: scale(1.03);
                 box-shadow: 0 4px 12px rgba(255, 152, 0, 0.5);
             }
         }
