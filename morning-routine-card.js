@@ -341,12 +341,24 @@ class MorningRoutineCard extends LitElement {
         };
         const conditionText = conditionTranslations[condition] || condition;
 
+        // Determine text color based on background (for contrast)
+        // Light backgrounds (#FFC107, #00BCD4) = black text
+        // Dark backgrounds (#2196F3, #4CAF50, #FF5722) = white text
+        const getTextColor = (bgColor) => {
+            if (bgColor === '#FFC107' || bgColor === '#00BCD4') {
+                return 'rgba(0, 0, 0, 0.87)'; // Dark text
+            }
+            return 'white'; // Light text
+        };
+
+        const textColor = getTextColor(tempColor);
+
         return html`
-            <div class="weather-section">
-                <ha-icon icon="${weatherIcon}" style="color: ${tempColor};"></ha-icon>
+            <div class="weather-section" style="background-color: ${tempColor}; color: ${textColor};">
+                <ha-icon icon="${weatherIcon}"></ha-icon>
                 <div class="weather-text">
-                    <span class="weather-temp" style="color: ${tempColor};">${temperature}°C</span>
-                    <span class="weather-description">${tempDescription}</span>
+                    <div class="weather-temp">${temperature}°C · ${conditionText}</div>
+                    <div class="weather-description">${tempDescription}</div>
                 </div>
             </div>
         `;
@@ -1340,19 +1352,18 @@ class MorningRoutineCard extends LitElement {
         .weather-section {
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 10px;
             padding: 12px 16px;
-            background: var(--card-background-color);
-            border: 2px solid var(--divider-color);
             border-radius: 12px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
             flex-shrink: 0;
         }
 
         .weather-section ha-icon {
-            width: 32px;
-            height: 32px;
+            width: 36px;
+            height: 36px;
             flex-shrink: 0;
+            filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.2));
         }
 
         .weather-text {
@@ -1363,17 +1374,17 @@ class MorningRoutineCard extends LitElement {
         }
 
         .weather-temp {
-            font-size: 18px;
+            font-size: 15px;
             font-weight: bold;
-            line-height: 1.2;
-            white-space: nowrap;
+            line-height: 1.3;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
         }
 
         .weather-description {
             font-size: 13px;
-            font-weight: 500;
-            color: var(--secondary-text-color);
-            white-space: nowrap;
+            font-weight: 600;
+            opacity: 0.9;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
         }
 
         .announcement-buttons {
@@ -2507,7 +2518,7 @@ window.customCards.push({
 });
 
 console.info(
-    `%c MORNING-ROUTINE-CARD %c 2.8.12 - Make weather section compact and inline with timer `,
+    `%c MORNING-ROUTINE-CARD %c 2.8.13 - Colored weather background with condition text `,
     "color: white; font-weight: bold; background: #4CAF50",
     "color: white; font-weight: bold; background: #2196F3"
 );
