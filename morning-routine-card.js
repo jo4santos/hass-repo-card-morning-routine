@@ -905,13 +905,18 @@ class MorningRoutineCard extends LitElement {
 
         // Save photo
         try {
+            console.log(`📸 Saving photo for ${this._currentChild}, activity: ${this._currentActivity}`);
             await this._hass.callService("morning_routine", "save_photo", {
                 child: this._currentChild,
                 photo_data: photoData,
             });
+            console.log(`✅ Photo saved successfully for ${this._currentChild}`);
 
-            // Complete activity
+            // Note: Activity completion is now handled automatically by the integration
+            // But we still call it here for redundancy/backwards compatibility
+            console.log(`✓ Completing activity ${this._currentActivity} for ${this._currentChild}`);
             await this._completeActivity(this._currentChild, this._currentActivity);
+            console.log(`✅ Activity ${this._currentActivity} completed for ${this._currentChild}`);
         } catch (err) {
             console.error("Erro ao guardar foto:", err);
             alert("Falha ao guardar foto. Por favor tenta novamente.");
@@ -920,13 +925,15 @@ class MorningRoutineCard extends LitElement {
 
     async _completeActivity(child, activity, completed = true) {
         try {
+            console.log(`🔄 Calling complete_activity service: child=${child}, activity=${activity}, completed=${completed}`);
             await this._hass.callService("morning_routine", "complete_activity", {
                 child: child,
                 activity: activity,
                 completed: completed,
             });
+            console.log(`✅ complete_activity service call successful for ${child}/${activity}`);
         } catch (err) {
-            console.error("Erro ao atualizar atividade:", err);
+            console.error(`❌ Error calling complete_activity for ${child}/${activity}:`, err);
             alert("Falha ao atualizar atividade. Por favor tente novamente.");
         }
     }
@@ -2519,7 +2526,7 @@ window.customCards.push({
 });
 
 console.info(
-    `%c MORNING-ROUTINE-CARD %c 2.8.14 - Taller photo/audio buttons, photo aligned to top `,
+    `%c MORNING-ROUTINE-CARD %c 2.8.15 - Enhanced logging and error handling `,
     "color: white; font-weight: bold; background: #4CAF50",
     "color: white; font-weight: bold; background: #2196F3"
 );
