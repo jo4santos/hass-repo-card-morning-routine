@@ -29,6 +29,7 @@ class MorningRoutineCard extends LitElement {
         _historyData: { type: Array, state: true },
         _historyIndex: { type: Number, state: true },
         _transcriptions: { type: Object, state: true },
+        _maxTemperature: { type: Number, state: true },
     };
 
     constructor() {
@@ -61,6 +62,8 @@ class MorningRoutineCard extends LitElement {
         this._historyData = [];
         this._historyIndex = 0;
         this._transcriptions = {};  // Store transcriptions by date
+        this._maxTemperature = null;
+        this._lastWeatherFetchTime = null;
 
         // Update timer every second
         this._timerInterval = setInterval(() => {
@@ -170,6 +173,21 @@ class MorningRoutineCard extends LitElement {
         // Update children data with latest state
         this._updateChildrenData();
 
+        // Fetch daily forecast max temperature if weather entity is configured (refresh every 30min)
+        if (this._config?.weather_entity) {
+            const weatherEntity = this._config.weather_entity;
+            const weatherState = hass.states[weatherEntity];
+            const now = Date.now();
+            const shouldFetch = weatherState && (
+                !this._lastWeatherFetchTime ||
+                now - this._lastWeatherFetchTime > 30 * 60 * 1000
+            );
+            if (shouldFetch) {
+                this._lastWeatherFetchTime = now;
+                this._fetchMaxTemperature(weatherEntity);
+            }
+        }
+
         // Force a complete re-render
         this.requestUpdate();
     }
@@ -265,6 +283,31 @@ class MorningRoutineCard extends LitElement {
         `;
     }
 
+    async _fetchMaxTemperature(weatherEntity) {
+        for (const forecastType of ['daily', 'hourly']) {
+            try {
+                const response = await this._hass.callWS({
+                    type: 'call_service',
+                    domain: 'weather',
+                    service: 'get_forecasts',
+                    service_data: { entity_id: weatherEntity, type: forecastType },
+                    return_response: true,
+                });
+                const forecastList = response?.response?.[weatherEntity]?.forecast || [];
+                if (forecastList.length > 0) {
+                    const maxTemp = forecastList[0].temperature;
+                    if (maxTemp != null) {
+                        this._maxTemperature = maxTemp;
+                        this.requestUpdate();
+                        return;
+                    }
+                }
+            } catch (e) {
+                // Try next forecast type
+            }
+        }
+    }
+
     _renderWeather() {
         if (!this._hass || !this._config.weather_entity) {
             return '';
@@ -275,7 +318,8 @@ class MorningRoutineCard extends LitElement {
             return '';
         }
 
-        const temperature = weatherEntity.attributes.temperature;
+        const currentTemperature = weatherEntity.attributes.temperature;
+        const temperature = this._maxTemperature ?? currentTemperature;
         const condition = weatherEntity.state;
 
         // Get temperature description for Esmoriz, Portugal climate
@@ -357,7 +401,7 @@ class MorningRoutineCard extends LitElement {
             <div class="weather-section" style="background-color: ${tempColor}; color: ${textColor};">
                 <ha-icon icon="${weatherIcon}"></ha-icon>
                 <div class="weather-text">
-                    <div class="weather-temp">${temperature}°C · ${conditionText}</div>
+                    <div class="weather-temp">${this._maxTemperature != null ? `máx. ${temperature}°C` : `${temperature}°C`} · ${conditionText}</div>
                     <div class="weather-description">${tempDescription}</div>
                 </div>
             </div>
@@ -2526,7 +2570,7 @@ window.customCards.push({
 });
 
 console.info(
-    `%c MORNING-ROUTINE-CARD %c 2.8.15 - Enhanced logging and error handling `,
+    `%c MORNING-ROUTINE-CARD %c 2.8.16 - Show max daily temperature in weather section `,
     "color: white; font-weight: bold; background: #4CAF50",
     "color: white; font-weight: bold; background: #2196F3"
 );
