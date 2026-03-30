@@ -1,6 +1,6 @@
 import { LitElement, html, css } from "https://cdn.jsdelivr.net/gh/lit/dist@2/all/lit-all.min.js";
 
-// Morning Routine Card v2.9.2 - Fix borders, taller buttons, cleaner reward/announcement styling
+// Morning Routine Card v2.9.3 - Use <dialog> for modals to fix positioning inside Bubble Card popups
 
 class MorningRoutineCard extends LitElement {
     static properties = {
@@ -109,6 +109,30 @@ class MorningRoutineCard extends LitElement {
         if (this._timerInterval) {
             clearInterval(this._timerInterval);
         }
+    }
+
+    updated(changedProperties) {
+        super.updated?.(changedProperties);
+        const modalFlags = ['_showCamera', '_showAudioRecorder', '_showPhoto', '_showReward', '_showConfirmReset', '_showHistory'];
+        if (!modalFlags.some(f => changedProperties.has(f))) return;
+        const isModalOpen = modalFlags.some(f => this[f]);
+        const dialog = this.shadowRoot?.getElementById('mr-dialog');
+        if (!dialog) return;
+        if (isModalOpen && !dialog.open) dialog.showModal();
+        else if (!isModalOpen && dialog.open) dialog.close();
+    }
+
+    _closeCurrentModal() {
+        if (this._showCamera) this._closeCamera();
+        else if (this._showAudioRecorder) this._closeAudioRecorder();
+        else if (this._showPhoto) this._closePhotoModal();
+        else if (this._showReward) this._closeRewardModal();
+        else if (this._showConfirmReset) this._closeResetConfirmation();
+        else if (this._showHistory) this._closeHistoryModal();
+    }
+
+    _handleDialogBackdropClick(e) {
+        if (e.target === e.currentTarget) this._closeCurrentModal();
     }
 
     _getTimeUntilSchool() {
@@ -240,12 +264,14 @@ class MorningRoutineCard extends LitElement {
                     </div>
                 </div>
             </ha-card>
-            ${this._renderCameraModal()}
-            ${this._renderAudioRecorderModal()}
-            ${this._renderPhotoModal()}
-            ${this._renderRewardModal()}
-            ${this._renderConfirmResetModal()}
-            ${this._renderHistoryModal()}
+            <dialog id="mr-dialog" @click=${this._handleDialogBackdropClick}>
+                ${this._renderCameraModal()}
+                ${this._renderAudioRecorderModal()}
+                ${this._renderPhotoModal()}
+                ${this._renderRewardModal()}
+                ${this._renderConfirmResetModal()}
+                ${this._renderHistoryModal()}
+            </dialog>
         `;
     }
 
@@ -605,35 +631,33 @@ class MorningRoutineCard extends LitElement {
         if (!this._showCamera) return html``;
 
         return html`
-            <div class="modal-overlay" @click=${this._closeCamera}>
-                <div class="camera-modal" @click=${(e) => e.stopPropagation()}>
-                    <div class="camera-header">
-                        <h2>📸 Carrega no preview para tirar foto!</h2>
-                        <mwc-icon-button @click=${this._closeCamera}>
-                            <ha-icon icon="mdi:close"></ha-icon>
-                        </mwc-icon-button>
+            <div class="camera-modal">
+                <div class="camera-header">
+                    <h2>📸 Carrega no preview para tirar foto!</h2>
+                    <mwc-icon-button @click=${this._closeCamera}>
+                        <ha-icon icon="mdi:close"></ha-icon>
+                    </mwc-icon-button>
+                </div>
+                ${this._availableCameras.length > 1 ? html`
+                    <div class="camera-selector">
+                        <label>Câmera:</label>
+                        <select @change=${this._onCameraChange}>
+                            ${this._availableCameras.map(camera => html`
+                                <option value="${camera.deviceId}" ?selected=${camera.deviceId === this._selectedCameraId}>
+                                    ${camera.label || `Câmera ${this._availableCameras.indexOf(camera) + 1}`}
+                                </option>
+                            `)}
+                        </select>
                     </div>
-                    ${this._availableCameras.length > 1 ? html`
-                        <div class="camera-selector">
-                            <label>Câmera:</label>
-                            <select @change=${this._onCameraChange}>
-                                ${this._availableCameras.map(camera => html`
-                                    <option value="${camera.deviceId}" ?selected=${camera.deviceId === this._selectedCameraId}>
-                                        ${camera.label || `Câmera ${this._availableCameras.indexOf(camera) + 1}`}
-                                    </option>
-                                `)}
-                            </select>
+                ` : ''}
+                <div class="camera-container" @click=${() => !this._countdown && this._startCountdown()}>
+                    <video id="camera-preview" autoplay playsinline></video>
+                    <canvas id="camera-canvas" style="display:none"></canvas>
+                    ${this._countdown > 0 ? html`
+                        <div class="countdown-overlay">
+                            <div class="countdown-number">${this._countdown}</div>
                         </div>
                     ` : ''}
-                    <div class="camera-container" @click=${() => !this._countdown && this._startCountdown()}>
-                        <video id="camera-preview" autoplay playsinline></video>
-                        <canvas id="camera-canvas" style="display:none"></canvas>
-                        ${this._countdown > 0 ? html`
-                            <div class="countdown-overlay">
-                                <div class="countdown-number">${this._countdown}</div>
-                            </div>
-                        ` : ''}
-                    </div>
                 </div>
             </div>
         `;
@@ -753,25 +777,23 @@ class MorningRoutineCard extends LitElement {
         if (!this._showAudioRecorder) return html``;
 
         return html`
-            <div class="modal-overlay" @click=${this._closeAudioRecorder}>
-                <div class="camera-modal" @click=${(e) => e.stopPropagation()}>
-                    <div class="camera-header">
-                        <h2>🎤 O que comeste hoje?</h2>
-                        <mwc-icon-button @click=${this._closeAudioRecorder}>
-                            <ha-icon icon="mdi:close"></ha-icon>
-                        </mwc-icon-button>
+            <div class="camera-modal">
+                <div class="camera-header">
+                    <h2>🎤 O que comeste hoje?</h2>
+                    <mwc-icon-button @click=${this._closeAudioRecorder}>
+                        <ha-icon icon="mdi:close"></ha-icon>
+                    </mwc-icon-button>
+                </div>
+                <div class="audio-recorder-container">
+                    <div
+                        class="recording-indicator ${this._isRecording ? 'recording' : ''}"
+                        @click=${() => this._isRecording ? this._stopRecording() : this._startRecording()}>
+                        <ha-icon icon="${this._isRecording ? 'mdi:stop' : 'mdi:microphone'}"></ha-icon>
+                        ${this._isRecording ? html`<span class="recording-time">${this._formatTime(this._recordingTime)}</span>` : ''}
                     </div>
-                    <div class="audio-recorder-container">
-                        <div
-                            class="recording-indicator ${this._isRecording ? 'recording' : ''}"
-                            @click=${() => this._isRecording ? this._stopRecording() : this._startRecording()}>
-                            <ha-icon icon="${this._isRecording ? 'mdi:stop' : 'mdi:microphone'}"></ha-icon>
-                            ${this._isRecording ? html`<span class="recording-time">${this._formatTime(this._recordingTime)}</span>` : ''}
-                        </div>
-                        <p class="audio-hint">
-                            ${this._isRecording ? 'Carrega para parar e guardar' : 'Carrega no microfone para gravar'}
-                        </p>
-                    </div>
+                    <p class="audio-hint">
+                        ${this._isRecording ? 'Carrega para parar e guardar' : 'Carrega no microfone para gravar'}
+                    </p>
                 </div>
             </div>
         `;
@@ -1077,29 +1099,27 @@ class MorningRoutineCard extends LitElement {
         const hasContent = this._photoChild.photo_path;
 
         return html`
-            <div class="modal-overlay" @click=${this._closePhotoModal}>
-                <div class="photo-modal" @click=${(e) => e.stopPropagation()}>
-                    <div class="photo-modal-header">
-                        <h2>📸 Foto - ${this._photoChild.name}</h2>
-                        <mwc-icon-button @click=${this._closePhotoModal}>
-                            <ha-icon icon="mdi:close"></ha-icon>
-                        </mwc-icon-button>
-                    </div>
-                    <div class="photo-modal-content">
-                        ${hasContent ? html`
-                            <img src="/local/morning_routine_photos/${this._getFilename(this._photoChild.photo_path)}"
-                                 alt="Foto de ${this._photoChild.name}" />
-                        ` : ''}
-                    </div>
-                    <div class="photo-modal-actions">
-                        <mwc-button
-                            raised
-                            class="retake-button"
-                            @click=${this._retakeMedia}>
-                            <ha-icon icon="mdi:camera" slot="icon"></ha-icon>
-                            Tirar Outra Foto
-                        </mwc-button>
-                    </div>
+            <div class="photo-modal">
+                <div class="photo-modal-header">
+                    <h2>📸 Foto - ${this._photoChild.name}</h2>
+                    <mwc-icon-button @click=${this._closePhotoModal}>
+                        <ha-icon icon="mdi:close"></ha-icon>
+                    </mwc-icon-button>
+                </div>
+                <div class="photo-modal-content">
+                    ${hasContent ? html`
+                        <img src="/local/morning_routine_photos/${this._getFilename(this._photoChild.photo_path)}"
+                             alt="Foto de ${this._photoChild.name}" />
+                    ` : ''}
+                </div>
+                <div class="photo-modal-actions">
+                    <mwc-button
+                        raised
+                        class="retake-button"
+                        @click=${this._retakeMedia}>
+                        <ha-icon icon="mdi:camera" slot="icon"></ha-icon>
+                        Tirar Outra Foto
+                    </mwc-button>
                 </div>
             </div>
         `;
@@ -1124,9 +1144,8 @@ class MorningRoutineCard extends LitElement {
         const hasAIImage = this._rewardChild.reward_image;
 
         return html`
-            <div class="modal-overlay" @click=${this._closeRewardModal}>
-                <div class="reward-modal" @click=${(e) => e.stopPropagation()}>
-                    <div class="reward-modal-header">
+            <div class="reward-modal">
+                <div class="reward-modal-header">
                         <h2>🎉 Recompensa d${this._getChildArticle(this._rewardChild.name).toLowerCase()} ${this._rewardChild.name}! 🎉</h2>
                         <mwc-icon-button @click=${this._closeRewardModal}>
                             <ha-icon icon="mdi:close"></ha-icon>
@@ -1155,7 +1174,6 @@ class MorningRoutineCard extends LitElement {
                             Completaste a rotina matinal! Parabéns! 🎊
                         </p>
                     </div>
-                </div>
             </div>
         `;
     }
@@ -1164,30 +1182,28 @@ class MorningRoutineCard extends LitElement {
         if (!this._showConfirmReset || !this._confirmResetChild) return html``;
 
         return html`
-            <div class="modal-overlay" @click=${this._closeResetConfirmation}>
-                <div class="confirm-modal" @click=${(e) => e.stopPropagation()}>
-                    <div class="confirm-modal-header">
-                        <h2>⚠️ Confirmar Reinicialização</h2>
-                    </div>
-                    <div class="confirm-modal-content">
-                        <p>Tens a certeza que queres reiniciar o dia do <strong>${this._confirmResetChild.name}</strong>?</p>
-                        <p class="confirm-warning">Todas as atividades concluídas serão marcadas como pendentes.</p>
-                    </div>
-                    <div class="confirm-modal-actions">
-                        <mwc-button
-                            raised
-                            class="confirm-button"
-                            @click=${this._confirmReset}>
-                            <ha-icon icon="mdi:check" slot="icon"></ha-icon>
-                            Sim, Reiniciar
-                        </mwc-button>
-                        <mwc-button
-                            class="cancel-button"
-                            @click=${this._closeResetConfirmation}>
-                            <ha-icon icon="mdi:close" slot="icon"></ha-icon>
-                            Cancelar
-                        </mwc-button>
-                    </div>
+            <div class="confirm-modal">
+                <div class="confirm-modal-header">
+                    <h2>⚠️ Confirmar Reinicialização</h2>
+                </div>
+                <div class="confirm-modal-content">
+                    <p>Tens a certeza que queres reiniciar o dia do <strong>${this._confirmResetChild.name}</strong>?</p>
+                    <p class="confirm-warning">Todas as atividades concluídas serão marcadas como pendentes.</p>
+                </div>
+                <div class="confirm-modal-actions">
+                    <mwc-button
+                        raised
+                        class="confirm-button"
+                        @click=${this._confirmReset}>
+                        <ha-icon icon="mdi:check" slot="icon"></ha-icon>
+                        Sim, Reiniciar
+                    </mwc-button>
+                    <mwc-button
+                        class="cancel-button"
+                        @click=${this._closeResetConfirmation}>
+                        <ha-icon icon="mdi:close" slot="icon"></ha-icon>
+                        Cancelar
+                    </mwc-button>
                 </div>
             </div>
         `;
@@ -1304,54 +1320,52 @@ class MorningRoutineCard extends LitElement {
         const transcriptionText = this._transcriptions[dateKey];
 
         return html`
-            <div class="modal-overlay" @click=${this._closeHistoryModal}>
-                <div class="history-modal" @click=${(e) => e.stopPropagation()}>
-                    <div class="history-modal-header">
-                        <h2>📅 Histórico - ${this._historyChild.name}</h2>
-                        <mwc-icon-button @click=${this._closeHistoryModal}>
-                            <ha-icon icon="mdi:close"></ha-icon>
+            <div class="history-modal">
+                <div class="history-modal-header">
+                    <h2>📅 Histórico - ${this._historyChild.name}</h2>
+                    <mwc-icon-button @click=${this._closeHistoryModal}>
+                        <ha-icon icon="mdi:close"></ha-icon>
+                    </mwc-icon-button>
+                </div>
+                <div class="history-content">
+                    <div class="history-navigation">
+                        <mwc-icon-button
+                            ?disabled=${this._historyIndex >= this._historyData.length - 1}
+                            @click=${this._previousHistoryDay}>
+                            <ha-icon icon="mdi:chevron-left"></ha-icon>
+                        </mwc-icon-button>
+                        <span class="history-date">${this._formatHistoryDate(currentEntry.date)}</span>
+                        <mwc-icon-button
+                            ?disabled=${this._historyIndex <= 0}
+                            @click=${this._nextHistoryDay}>
+                            <ha-icon icon="mdi:chevron-right"></ha-icon>
                         </mwc-icon-button>
                     </div>
-                    <div class="history-content">
-                        <div class="history-navigation">
-                            <mwc-icon-button
-                                ?disabled=${this._historyIndex >= this._historyData.length - 1}
-                                @click=${this._previousHistoryDay}>
-                                <ha-icon icon="mdi:chevron-left"></ha-icon>
-                            </mwc-icon-button>
-                            <span class="history-date">${this._formatHistoryDate(currentEntry.date)}</span>
-                            <mwc-icon-button
-                                ?disabled=${this._historyIndex <= 0}
-                                @click=${this._nextHistoryDay}>
-                                <ha-icon icon="mdi:chevron-right"></ha-icon>
-                            </mwc-icon-button>
-                        </div>
-                        <div class="history-media" data-date="${dateKey}">
-                            ${hasAudio ? html`
-                                <div class="history-audio-container">
-                                    <h3>🎤 Áudio do Pequeno-Almoço</h3>
-                                    <audio controls autoplay preload="metadata" src="${currentEntry.audio}?date=${dateKey}">
-                                        O teu navegador não suporta áudio.
-                                    </audio>
-                                    ${transcriptionText ? html`
-                                        <div class="transcription-box">
-                                            <h4>📝 Transcrição:</h4>
-                                            <p>${transcriptionText}</p>
-                                        </div>
-                                    ` : currentEntry.transcription ? html`
-                                        <p class="transcription-loading">⏳ A carregar transcrição...</p>
-                                    ` : html`
-                                        <p class="transcription-loading">⏳ A transcrever áudio...</p>
-                                    `}
-                                </div>
-                            ` : html`<p class="no-media">Sem áudio disponível</p>`}
-                            ${hasPhoto ? html`
-                                <div class="history-photo-container">
-                                    <h3>📸 Foto do Dia</h3>
-                                    <img src="${currentEntry.photo}" alt="Foto do ${this._formatHistoryDate(currentEntry.date)}" />
-                                </div>
-                            ` : html`<p class="no-media">Sem foto disponível</p>`}
-                        </div>
+                    <div class="history-media" data-date="${dateKey}">
+                        ${hasAudio ? html`
+                            <div class="history-audio-container">
+                                <h3>🎤 Áudio do Pequeno-Almoço</h3>
+                                <audio controls autoplay preload="metadata" src="${currentEntry.audio}?date=${dateKey}">
+                                    O teu navegador não suporta áudio.
+                                </audio>
+                                ${transcriptionText ? html`
+                                    <div class="transcription-box">
+                                        <h4>📝 Transcrição:</h4>
+                                        <p>${transcriptionText}</p>
+                                    </div>
+                                ` : currentEntry.transcription ? html`
+                                    <p class="transcription-loading">⏳ A carregar transcrição...</p>
+                                ` : html`
+                                    <p class="transcription-loading">⏳ A transcrever áudio...</p>
+                                `}
+                            </div>
+                        ` : html`<p class="no-media">Sem áudio disponível</p>`}
+                        ${hasPhoto ? html`
+                            <div class="history-photo-container">
+                                <h3>📸 Foto do Dia</h3>
+                                <img src="${currentEntry.photo}" alt="Foto do ${this._formatHistoryDate(currentEntry.date)}" />
+                            </div>
+                        ` : html`<p class="no-media">Sem foto disponível</p>`}
                     </div>
                 </div>
             </div>
@@ -1839,15 +1853,6 @@ class MorningRoutineCard extends LitElement {
             border-radius: 4px;
         }
 
-        @keyframes pulse {
-            0%, 100% {
-                box-shadow: 0 2px 8px rgba(255, 152, 0, 0.3);
-            }
-            50% {
-                box-shadow: 0 4px 12px rgba(255, 152, 0, 0.5);
-            }
-        }
-
         .reward-preview {
             margin-top: 16px;
             text-align: center;
@@ -1877,17 +1882,17 @@ class MorningRoutineCard extends LitElement {
         }
 
         /* Modal Styles */
-        .modal-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+        #mr-dialog {
+            padding: 0;
+            border: none;
+            background: transparent;
+            overflow: visible;
+            max-width: none;
+            max-height: none;
+        }
+
+        #mr-dialog::backdrop {
             background: rgba(0, 0, 0, 0.7);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 1000;
         }
 
         .camera-modal {
