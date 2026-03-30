@@ -1,6 +1,6 @@
 import { LitElement, html, css } from "https://cdn.jsdelivr.net/gh/lit/dist@2/all/lit-all.min.js";
 
-// Morning Routine Card v2.9.1 - Vertical buttons in row, bubble borders everywhere
+// Morning Routine Card v2.9.2 - Fix borders, taller buttons, cleaner reward/announcement styling
 
 class MorningRoutineCard extends LitElement {
     static properties = {
@@ -1450,7 +1450,7 @@ class MorningRoutineCard extends LitElement {
             flex: 1;
             padding: 10px 14px;
             background-color: var(--bubble-button-background-color, rgba(var(--rgb-primary-text-color, 0,0,0), 0.05));
-            border: var(--bubble-border, var(--ha-card-border-width, 1px) solid var(--ha-card-border-color, var(--divider-color, #e0e0e0)));
+            border: 1px solid var(--ha-card-border-color, var(--divider-color, rgba(128,128,128,0.2)));
             border-radius: var(--bubble-border-radius, 32px);
             color: var(--primary-text-color);
             font-size: 13px;
@@ -1502,7 +1502,7 @@ class MorningRoutineCard extends LitElement {
         }
 
         .child-section {
-            border: var(--bubble-border, var(--ha-card-border-width, 1px) solid var(--ha-card-border-color, var(--divider-color, #e0e0e0)));
+            border: 1px solid var(--ha-card-border-color, var(--divider-color, rgba(128,128,128,0.2)));
             border-radius: var(--bubble-border-radius, 32px);
             padding: 16px;
             background: var(--bubble-main-background-color, var(--ha-card-background, var(--card-background-color, white)));
@@ -1635,14 +1635,14 @@ class MorningRoutineCard extends LitElement {
             padding: 12px 8px;
             border-radius: var(--bubble-border-radius, 32px);
             background-color: var(--bubble-button-background-color, rgba(var(--rgb-primary-text-color, 0,0,0), 0.05));
-            border: var(--bubble-border, var(--ha-card-border-width, 1px) solid var(--ha-card-border-color, var(--divider-color, #e0e0e0)));
+            border: 1px solid var(--ha-card-border-color, var(--divider-color, rgba(128,128,128,0.2)));
             color: var(--primary-text-color);
             cursor: pointer;
             transition: filter 0.1s ease;
             overflow: hidden;
             flex: 1;
             min-width: 80px;
-            min-height: 110px;
+            min-height: 140px;
         }
 
         .activity-item::after {
@@ -1770,7 +1770,7 @@ class MorningRoutineCard extends LitElement {
         .reward-button {
             padding: 10px 20px;
             background-color: var(--bubble-button-background-color, rgba(var(--rgb-primary-text-color, 0,0,0), 0.05));
-            border: var(--bubble-border, var(--ha-card-border-width, 1px) solid var(--ha-card-border-color, var(--divider-color, #e0e0e0)));
+            border: 1px solid var(--ha-card-border-color, var(--divider-color, rgba(128,128,128,0.2)));
             border-radius: var(--bubble-border-radius, 32px);
             color: #FF9800;
             font-size: 15px;
@@ -1783,7 +1783,6 @@ class MorningRoutineCard extends LitElement {
             overflow: hidden;
             transition: filter 0.1s ease;
             font-family: inherit;
-            animation: pulse 2s infinite;
         }
 
         .reward-button::after {
