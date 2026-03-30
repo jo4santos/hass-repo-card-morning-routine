@@ -1,6 +1,6 @@
 import { LitElement, html, css } from "https://cdn.jsdelivr.net/gh/lit/dist@2/all/lit-all.min.js";
 
-// Morning Routine Card v2.9.0 - Bubble card aligned layout for activity buttons
+// Morning Routine Card v2.9.1 - Vertical buttons in row, bubble borders everywhere
 
 class MorningRoutineCard extends LitElement {
     static properties = {
@@ -1616,7 +1616,8 @@ class MorningRoutineCard extends LitElement {
 
         .activities-grid {
             display: flex;
-            flex-direction: column;
+            flex-direction: row;
+            flex-wrap: wrap;
             gap: 8px;
             width: 100%;
         }
@@ -1628,9 +1629,10 @@ class MorningRoutineCard extends LitElement {
         .activity-item {
             position: relative;
             display: flex;
-            flex-direction: row;
+            flex-direction: column;
             align-items: center;
-            padding: 10px 12px;
+            justify-content: center;
+            padding: 12px 8px;
             border-radius: var(--bubble-border-radius, 32px);
             background-color: var(--bubble-button-background-color, rgba(var(--rgb-primary-text-color, 0,0,0), 0.05));
             border: var(--bubble-border, var(--ha-card-border-width, 1px) solid var(--ha-card-border-color, var(--divider-color, #e0e0e0)));
@@ -1638,6 +1640,9 @@ class MorningRoutineCard extends LitElement {
             cursor: pointer;
             transition: filter 0.1s ease;
             overflow: hidden;
+            flex: 1;
+            min-width: 80px;
+            min-height: 110px;
         }
 
         .activity-item::after {
@@ -1661,38 +1666,37 @@ class MorningRoutineCard extends LitElement {
             display: flex;
             align-items: center;
             justify-content: center;
-            width: 38px;
-            height: 38px;
-            --mdc-icon-size: 38px;
-            flex-shrink: 0;
-            margin-right: 12px;
+            width: 40px;
+            height: 40px;
+            --mdc-icon-size: 40px;
+            margin-bottom: 6px;
         }
 
         .activity-icon ha-icon {
-            width: 38px;
-            height: 38px;
+            width: 40px;
+            height: 40px;
         }
 
         .activity-name {
-            flex: 1;
-            font-size: 15px;
+            font-size: 13px;
             font-weight: 600;
+            text-align: center;
             line-height: 1.2;
             word-wrap: break-word;
             overflow-wrap: break-word;
+            hyphens: auto;
         }
 
         .check-mark {
-            display: flex;
-            align-items: center;
-            flex-shrink: 0;
-            margin-left: 8px;
+            position: absolute;
+            top: 6px;
+            right: 6px;
         }
 
         .check-mark ha-icon {
-            width: 24px;
-            height: 24px;
-            --mdc-icon-size: 24px;
+            width: 20px;
+            height: 20px;
+            --mdc-icon-size: 20px;
         }
 
         /* Media Preview in Activity Tiles */
@@ -1700,8 +1704,7 @@ class MorningRoutineCard extends LitElement {
             display: flex;
             align-items: center;
             justify-content: center;
-            margin-left: 8px;
-            flex-shrink: 0;
+            margin-top: 8px;
         }
 
         .activity-media-preview img {
@@ -1765,36 +1768,42 @@ class MorningRoutineCard extends LitElement {
         }
 
         .reward-button {
-            padding: 12px 24px;
-            background: #FF9800;
-            border: 2px solid #FF9800;
-            border-radius: 8px;
-            color: white;
+            padding: 10px 20px;
+            background-color: var(--bubble-button-background-color, rgba(var(--rgb-primary-text-color, 0,0,0), 0.05));
+            border: var(--bubble-border, var(--ha-card-border-width, 1px) solid var(--ha-card-border-color, var(--divider-color, #e0e0e0)));
+            border-radius: var(--bubble-border-radius, 32px);
+            color: #FF9800;
             font-size: 15px;
             font-weight: 600;
             cursor: pointer;
             display: flex;
             align-items: center;
             gap: 8px;
-            transition: all 0.2s;
-            box-shadow: 0 2px 8px rgba(255, 152, 0, 0.3);
+            position: relative;
+            overflow: hidden;
+            transition: filter 0.1s ease;
+            font-family: inherit;
             animation: pulse 2s infinite;
         }
 
-        .reward-button:hover {
-            background: #FB8C00;
-            border-color: #FB8C00;
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(255, 152, 0, 0.5);
+        .reward-button::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            border-radius: inherit;
+            background-color: rgb(184, 192, 224);
+            opacity: 0;
+            transition: opacity 0.15s ease;
+            pointer-events: none;
         }
 
-        .reward-button:active {
-            transform: translateY(0);
-        }
+        .reward-button:hover::after { opacity: 0.08; }
+        .reward-button:active { filter: brightness(0.9); }
 
         .reward-button ha-icon {
             width: 24px;
             height: 24px;
+            --mdc-icon-size: 24px;
         }
 
         .audio-button {
