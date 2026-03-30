@@ -1,5 +1,7 @@
 import { LitElement, html, css } from "https://cdn.jsdelivr.net/gh/lit/dist@2/all/lit-all.min.js";
 
+// Morning Routine Card v2.9.0 - Bubble card aligned layout for activity buttons
+
 class MorningRoutineCard extends LitElement {
     static properties = {
         _hass: { state: true },
@@ -1446,37 +1448,44 @@ class MorningRoutineCard extends LitElement {
 
         .announcement-button {
             flex: 1;
-            max-width: 200px;
-            padding: 12px 16px;
-            background: var(--card-background-color);
-            border: 2px solid var(--primary-color);
-            border-radius: 8px;
+            padding: 10px 14px;
+            background-color: var(--bubble-button-background-color, rgba(var(--rgb-primary-text-color, 0,0,0), 0.05));
+            border: var(--bubble-border, var(--ha-card-border-width, 1px) solid var(--ha-card-border-color, var(--divider-color, #e0e0e0)));
+            border-radius: var(--bubble-border-radius, 32px);
             color: var(--primary-text-color);
             font-size: 13px;
             font-weight: 600;
             cursor: pointer;
             display: flex;
-            flex-direction: column;
+            flex-direction: row;
             align-items: center;
-            gap: 6px;
-            transition: all 0.2s;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            justify-content: center;
+            gap: 8px;
+            transition: filter 0.1s ease;
+            position: relative;
+            overflow: hidden;
+            font-family: inherit;
         }
 
-        .announcement-button:hover {
-            background: var(--primary-color);
-            color: white;
-            transform: translateY(-2px);
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        .announcement-button::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            border-radius: inherit;
+            background-color: rgb(184, 192, 224);
+            opacity: 0;
+            transition: opacity 0.15s ease;
+            pointer-events: none;
         }
 
-        .announcement-button:active {
-            transform: translateY(0);
-        }
+        .announcement-button:hover::after { opacity: 0.08; }
+        .announcement-button:active { filter: brightness(0.9); }
 
         .announcement-button ha-icon {
-            width: 24px;
-            height: 24px;
+            width: 20px;
+            height: 20px;
+            --mdc-icon-size: 20px;
+            flex-shrink: 0;
         }
 
         .children-container {
@@ -1493,10 +1502,10 @@ class MorningRoutineCard extends LitElement {
         }
 
         .child-section {
-            border: 2px solid var(--child-color, #4CAF50);
-            border-radius: 12px;
+            border: var(--bubble-border, var(--ha-card-border-width, 1px) solid var(--ha-card-border-color, var(--divider-color, #e0e0e0)));
+            border-radius: var(--bubble-border-radius, 32px);
             padding: 16px;
-            background: var(--card-background-color);
+            background: var(--bubble-main-background-color, var(--ha-card-background, var(--card-background-color, white)));
         }
 
         .child-section.error {
@@ -1607,8 +1616,7 @@ class MorningRoutineCard extends LitElement {
 
         .activities-grid {
             display: flex;
-            flex-direction: row;
-            flex-wrap: wrap;
+            flex-direction: column;
             gap: 8px;
             width: 100%;
         }
@@ -1617,165 +1625,91 @@ class MorningRoutineCard extends LitElement {
             gap: 6px;
         }
 
-        /* Responsive layout for mobile */
-        @media (max-width: 768px) {
-            .activities-grid {
-                gap: 6px;
-            }
-
-            .activity-item {
-                flex: 1 1 calc(50% - 6px);
-                min-width: calc(50% - 6px);
-                max-width: calc(50% - 6px);
-            }
-        }
-
-        @media (max-width: 480px) {
-            .activities-grid {
-                gap: 4px;
-            }
-
-            .activity-item {
-                flex: 1 1 calc(50% - 4px);
-                min-width: calc(50% - 4px);
-                max-width: calc(50% - 4px);
-                height: 160px;
-            }
-
-            .activity-icon {
-                font-size: 42px;
-                margin-bottom: 4px;
-                --mdc-icon-size: 42px;
-            }
-
-            .activity-icon ha-icon {
-                width: 42px;
-                height: 42px;
-            }
-
-            .activity-item.has-media .activity-icon {
-                font-size: 34px;
-                --mdc-icon-size: 34px;
-            }
-
-            .activity-item.has-media .activity-icon ha-icon {
-                width: 34px;
-                height: 34px;
-            }
-
-            .activity-name {
-                font-size: 12px;
-            }
-
-            .activity-item.has-media .activity-name {
-                font-size: 11px;
-            }
-        }
-
         .activity-item {
             position: relative;
             display: flex;
-            flex-direction: column;
+            flex-direction: row;
             align-items: center;
-            justify-content: flex-start;
-            padding: 12px 8px;
-            border-radius: 12px;
-            background: var(--card-background-color);
-            border: 3px solid #e0e0e0;
+            padding: 10px 12px;
+            border-radius: var(--bubble-border-radius, 32px);
+            background-color: var(--bubble-button-background-color, rgba(var(--rgb-primary-text-color, 0,0,0), 0.05));
+            border: var(--bubble-border, var(--ha-card-border-width, 1px) solid var(--ha-card-border-color, var(--divider-color, #e0e0e0)));
+            color: var(--primary-text-color);
             cursor: pointer;
-            transition: all 0.3s ease;
-            height: 180px;
-            flex: 1;
-            min-width: 0;
+            transition: filter 0.1s ease;
+            overflow: hidden;
         }
 
-        .activity-item:hover:not(.completed) {
-            transform: scale(1.05);
-            border-color: var(--child-color);
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        .activity-item::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            border-radius: inherit;
+            background-color: rgb(184, 192, 224);
+            opacity: 0;
+            transition: opacity 0.15s ease;
+            pointer-events: none;
         }
 
-        .activity-item.pending {
-            background: linear-gradient(135deg, #FFCDD2 0%, #EF9A9A 100%);
-            border-color: #F44336;
-        }
+        .activity-item:hover::after { opacity: 0.08; }
+        .activity-item:active { filter: brightness(0.9); }
 
-        .activity-item.completed {
-            background: #c8e6c9;
-            border-color: #4CAF50;
-            cursor: default;
-        }
+        .activity-item.pending { color: var(--error-color, #f44336); }
+        .activity-item.completed { color: var(--success-color, #4caf50); cursor: default; }
 
         .activity-icon {
-            font-size: 56px;
-            margin-bottom: 8px;
-            color: var(--primary-text-color);
-            --mdc-icon-size: 56px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 38px;
+            height: 38px;
+            --mdc-icon-size: 38px;
+            flex-shrink: 0;
+            margin-right: 12px;
         }
 
         .activity-icon ha-icon {
-            width: 56px;
-            height: 56px;
-        }
-
-        .activity-item.has-media .activity-icon {
-            font-size: 44px;
-            margin-bottom: 6px;
-            --mdc-icon-size: 44px;
-        }
-
-        .activity-item.has-media .activity-icon ha-icon {
-            width: 44px;
-            height: 44px;
-        }
-
-        .activity-item.completed .activity-icon {
-            color: #2e7d32;
+            width: 38px;
+            height: 38px;
         }
 
         .activity-name {
-            font-size: 14px;
+            flex: 1;
+            font-size: 15px;
             font-weight: 600;
-            text-align: center;
             line-height: 1.2;
             word-wrap: break-word;
             overflow-wrap: break-word;
-            hyphens: auto;
-            margin-bottom: 6px;
-        }
-
-        .activity-item.has-media .activity-name {
-            font-size: 12px;
-            margin-bottom: 4px;
         }
 
         .check-mark {
-            position: absolute;
-            top: 8px;
-            right: 8px;
-            color: #2e7d32;
+            display: flex;
+            align-items: center;
+            flex-shrink: 0;
+            margin-left: 8px;
         }
 
         .check-mark ha-icon {
-            width: 32px;
-            height: 32px;
+            width: 24px;
+            height: 24px;
+            --mdc-icon-size: 24px;
         }
 
         /* Media Preview in Activity Tiles */
         .activity-media-preview {
-            margin-top: auto;
-            width: 100%;
             display: flex;
-            justify-content: center;
             align-items: center;
+            justify-content: center;
+            margin-left: 8px;
+            flex-shrink: 0;
         }
 
         .activity-media-preview img {
-            width: 80px;
-            height: 70px;
+            width: 52px;
+            height: 46px;
             object-fit: cover;
             object-position: top;
-            border-radius: 6px;
+            border-radius: 8px;
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
             cursor: pointer;
             transition: transform 0.2s;
@@ -1790,32 +1724,26 @@ class MorningRoutineCard extends LitElement {
         }
 
         .audio-play-button {
-            width: 80px;
-            height: 70px;
-            border-radius: 6px;
-            background: #4CAF50;
+            width: 52px;
+            height: 46px;
+            border-radius: 8px;
+            background: var(--success-color, #4caf50);
             border: none;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
             color: white;
-            transition: all 0.2s;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+            transition: filter 0.2s;
         }
 
-        .audio-play-button:hover {
-            background: #45a049;
-            transform: scale(1.05);
-        }
-
-        .audio-play-button:active {
-            transform: scale(0.95);
-        }
+        .audio-play-button:hover { filter: brightness(1.1); }
+        .audio-play-button:active { filter: brightness(0.9); }
 
         .audio-play-button ha-icon {
-            width: 28px;
-            height: 28px;
+            width: 24px;
+            height: 24px;
+            --mdc-icon-size: 24px;
         }
 
         .button-container {
