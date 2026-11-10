@@ -1,6 +1,6 @@
 import { LitElement, html, css } from "https://cdn.jsdelivr.net/gh/lit/dist@2/all/lit-all.min.js";
 
-// Morning Routine Card v2.9.3 - Use <dialog> for modals to fix positioning inside Bubble Card popups
+// Morning Routine Card v2.10.0 - Unified sober style: one palette, flat surfaces, neutral weather block
 
 class MorningRoutineCard extends LitElement {
     static properties = {
@@ -157,9 +157,9 @@ class MorningRoutineCard extends LitElement {
         // Green: more than 30 minutes (1800s)
         // Yellow: 15-30 minutes (900-1800s)
         // Red: less than 15 minutes (900s)
-        if (totalSeconds > 1800) return '#4CAF50'; // Green
-        if (totalSeconds > 900) return '#FFC107'; // Yellow
-        return '#F44336'; // Red
+        if (totalSeconds > 1800) return '#a6da95'; // Green
+        if (totalSeconds > 900) return '#eed49f'; // Yellow
+        return '#ed8796'; // Red
     }
 
     shouldUpdate(changedProps) {
@@ -380,18 +380,9 @@ class MorningRoutineCard extends LitElement {
             return icons[condition] || 'mdi:weather-cloudy';
         };
 
-        // Get temperature color
-        const getTempColor = (temp) => {
-            if (temp < 10) return '#2196F3'; // Blue - cold
-            if (temp < 15) return '#00BCD4'; // Cyan - cool
-            if (temp < 20) return '#4CAF50'; // Green - mild
-            if (temp < 25) return '#FFC107'; // Yellow - pleasant
-            return '#FF5722'; // Orange-red - hot
-        };
 
         const tempDescription = getTempDescription(temperature);
         const weatherIcon = getWeatherIcon(condition);
-        const tempColor = getTempColor(temperature);
 
         // Translate condition
         const conditionTranslations = {
@@ -413,20 +404,8 @@ class MorningRoutineCard extends LitElement {
         };
         const conditionText = conditionTranslations[condition] || condition;
 
-        // Determine text color based on background (for contrast)
-        // Light backgrounds (#FFC107, #00BCD4) = black text
-        // Dark backgrounds (#2196F3, #4CAF50, #FF5722) = white text
-        const getTextColor = (bgColor) => {
-            if (bgColor === '#FFC107' || bgColor === '#00BCD4') {
-                return 'rgba(0, 0, 0, 0.87)'; // Dark text
-            }
-            return 'white'; // Light text
-        };
-
-        const textColor = getTextColor(tempColor);
-
         return html`
-            <div class="weather-section" style="background-color: ${tempColor}; color: ${textColor};">
+            <div class="weather-section">
                 <ha-icon icon="${weatherIcon}"></ha-icon>
                 <div class="weather-text">
                     <div class="weather-temp">${this._maxTemperature != null ? `máx. ${temperature}°C` : `${temperature}°C`} · ${conditionText}</div>
@@ -450,7 +429,7 @@ class MorningRoutineCard extends LitElement {
         const hasAudio = child.audio_recording;
 
         // Build style without photo background
-        let sectionStyle = `--child-color: ${child.color || '#4CAF50'};`;
+        let sectionStyle = `--child-color: ${child.color || '#8aadf4'};`;
 
         return html`
             <div class="child-section" style="${sectionStyle}">
@@ -493,7 +472,7 @@ class MorningRoutineCard extends LitElement {
                         <svg class="progress-ring" width="60" height="60">
                             <circle
                                 class="progress-ring-bg"
-                                stroke="#e0e0e0"
+                                stroke="var(--card-background-color, #e0e0e0)"
                                 stroke-width="4"
                                 fill="transparent"
                                 r="26"
@@ -502,7 +481,7 @@ class MorningRoutineCard extends LitElement {
                             ></circle>
                             <circle
                                 class="progress-ring-circle"
-                                stroke="${child.color || '#4CAF50'}"
+                                stroke="${child.color || '#8aadf4'}"
                                 stroke-width="4"
                                 fill="transparent"
                                 r="26"
@@ -2472,6 +2451,51 @@ class MorningRoutineCard extends LitElement {
             font-size: 13px;
             font-style: italic;
         }
+
+        /* ------------------------------------------------------------------
+           Unified style (v2.10.0): one sober palette, flat surfaces.
+           green #a6da95 = done · yellow #eed49f = attention · red #ed8796 = late / destructive
+           Everything else follows the active Home Assistant theme.
+           ------------------------------------------------------------------ */
+        .global-timer { box-shadow: none; border-radius: 12px; color: #181926; font-size: 24px; font-weight: 600; }
+        .weather-section { background-color: var(--secondary-background-color); color: var(--primary-text-color); box-shadow: none; border-radius: 12px; }
+        .weather-section ha-icon { filter: none; }
+        .weather-temp, .weather-description { text-shadow: none; }
+        .weather-description { font-weight: 500; opacity: 1; color: var(--secondary-text-color); }
+        .announcement-button, .reward-button { border: 0; border-radius: 999px; background-color: var(--secondary-background-color); min-height: 44px; font-weight: 500; }
+        .reward-button { color: #181926; background-color: #eed49f; font-weight: 600; }
+        .child-section { border: 0; border-radius: 16px; background: var(--secondary-background-color); padding: 14px; }
+        .child-section.error { border: 0; color: #ed8796; }
+        .child-header h2 { font-size: 18px; font-weight: 600; color: var(--primary-text-color); }
+        .history-button, .reset-button { border: 0 !important; background: var(--card-background-color) !important; }
+        .history-button ha-icon { color: var(--secondary-text-color); }
+        .reset-button ha-icon { color: #ed8796; }
+        .activity-item { border: 0; border-radius: 12px; background-color: var(--card-background-color); }
+        .activity-item.pending { color: var(--primary-text-color); }
+        .activity-item.pending .activity-icon { color: var(--secondary-text-color); }
+        .activity-item.completed { background-color: #a6da95; color: #181926; }
+        .activity-name { font-size: 14px; font-weight: 500; }
+        .activity-media-preview img { box-shadow: none; border-radius: 8px; }
+        .audio-play-button { background: var(--primary-color); color: #181926; }
+        .activity-item.completed .audio-play-button { background: #181926; color: #a6da95; }
+        .audio-player-container { border: 0; border-radius: 12px; background: var(--card-background-color); }
+        .audio-player-label { color: var(--primary-text-color); }
+        .reward-preview { background: var(--card-background-color); border-radius: 12px; }
+        .celebration { color: var(--primary-text-color); animation: none; }
+        .camera-modal, .reward-modal, .photo-modal, .confirm-modal, .history-modal { box-shadow: none; border-radius: 16px; }
+        .recording-indicator { background: var(--secondary-background-color); border-color: var(--divider-color); }
+        .recording-indicator:hover { box-shadow: none; }
+        .recording-indicator ha-icon { color: var(--secondary-text-color); }
+        .recording-indicator.recording { background: #ed8796; border-color: #ed8796; }
+        .recording-indicator.recording ha-icon { color: #181926; }
+        .reward-quote-container { background: #eed49f; border-radius: 16px; }
+        .reward-trophy, .reward-quote { color: #181926; text-shadow: none; }
+        .reward-trophy { animation: none; }
+        .photo-thumbnail, .photo-thumbnail:hover, .history-photo-container img { box-shadow: none; }
+        .confirm-modal-header h2, .confirm-warning { color: #ed8796; }
+        .history-photo-container, .history-audio-container { border: 0; background: var(--secondary-background-color); border-radius: 12px; }
+        .history-navigation { background: var(--secondary-background-color); border-radius: 12px; }
+        .transcription-box { border-left: 0; border-radius: 12px; background: var(--secondary-background-color); }
     `;
 
     static getConfigElement() {
