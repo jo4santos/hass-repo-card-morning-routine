@@ -1,6 +1,6 @@
 import { LitElement, html, css } from "https://cdn.jsdelivr.net/gh/lit/dist@2/all/lit-all.min.js";
 
-// Morning Routine Card v2.10.0 - Unified sober style: one palette, flat surfaces, neutral weather block
+// Morning Routine Card v2.10.1 - Stable dialog sizes (camera, audio, photo no longer jump while loading)
 
 class MorningRoutineCard extends LitElement {
     static properties = {
@@ -2496,6 +2496,16 @@ class MorningRoutineCard extends LitElement {
         .history-photo-container, .history-audio-container { border: 0; background: var(--secondary-background-color); border-radius: 12px; }
         .history-navigation { background: var(--secondary-background-color); border-radius: 12px; }
         .transcription-box { border-left: 0; border-radius: 12px; background: var(--secondary-background-color); }
+
+        /* Stable dialog sizes (v2.10.1): the <dialog> shrink-wraps its content, so percentage widths
+           collapsed until the camera stream or the photo had loaded and then jumped. Size against the
+           viewport instead and reserve the media area up front. */
+        .camera-modal, .history-modal { width: min(600px, 92vw); max-width: none; }
+        .confirm-modal { width: min(500px, 92vw); max-width: none; }
+        .reward-modal, .photo-modal { width: min(900px, 92vw); max-width: none; }
+        #camera-preview { display: block; aspect-ratio: 4 / 3; object-fit: cover; background: #000; }
+        .audio-recorder-container { min-height: 280px; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .photo-modal-content { min-height: min(60vh, 480px); box-sizing: border-box; display: flex; align-items: center; justify-content: center; }
     `;
 
     static getConfigElement() {
