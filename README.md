@@ -11,6 +11,7 @@ A beautiful, kid-friendly custom Lovelace card for displaying and interacting wi
 - **Reward display**: Show AI-generated reward images when routines are complete
 - **Reward from the photo** (v2.11.0+): the cartoon generated from the child's morning photo, a waiting state while it is being made, and a "medalha do dia" fallback
 - **Streak** (v2.11.0+): consecutive completed routine days, shown discreetly next to the child's name and in the reward
+- **Games** (v2.11.1+, optional): a "Jogos" button next to "Ver Recompensa" that opens a games site in a full-screen frame
 - **Interactive**: Click activities to mark them complete
 - **Responsive**: Works on tablets, desktops, and mobile devices
 - **Customizable**: Configure colors, layout, and display options
@@ -74,6 +75,10 @@ children:
 layout: horizontal  # or "vertical"
 show_progress: true
 compact: false
+games:               # optional - "Jogos" button next to "Ver Recompensa"
+  url: https://www.funbrain.com/
+  label: Jogos
+  icon: mdi:gamepad-variant-outline
 ```
 
 ### Configuration Options
@@ -87,6 +92,11 @@ compact: false
 | `layout` | string | `horizontal` | Card layout: `horizontal` or `vertical` |
 | `show_progress` | boolean | `true` | Show progress rings in headers |
 | `compact` | boolean | `false` | Use compact grid layout |
+| `games` | object or string | none | Optional games button (v2.11.1+). An object (below) or just the URL as a string |
+| `games.url` | string | none | Page opened in the full-screen frame (`http`/`https`; the site must allow being embedded) |
+| `games.label` | string | `Jogos` | Button text (also the title of the frame) |
+| `games.icon` | string | `mdi:gamepad-variant-outline` | Button icon |
+| `games_url` | string | none | Shorthand for `games.url` |
 
 ## Usage
 
@@ -108,6 +118,15 @@ When a child completes all activities:
 1. AI-generated reward image appears in their section
 2. Click the reward to view full-screen
 3. Celebration message displays
+
+### Games in a full-screen frame (v2.11.1+)
+
+Optional. With `games` configured, each child who has completed **all** activities gets a "Jogos" button next to "Ver Recompensa" (nothing is shown before that, and nothing changes when `games` is not configured).
+
+- Tapping it opens the configured page in a frame that covers the whole screen. The frame is attached to the page itself, so it also covers the dashboard when the card sits inside a pop-up (e.g. Bubble Card). Where the browser allows it, real full screen is requested as well.
+- Close with the round **X** in the top right corner (always visible), or with `Esc` on a keyboard. Leaving the browser's full screen (`Esc` / system gesture) keeps the games open; closing the games also leaves full screen. Closing removes the frame, so the game and its sound stop.
+- "A abrir os jogos…" is shown while the page loads. If it has not finished loading after about 8 seconds, a small bar with an "Abrir numa nova janela" button appears at the bottom until it does.
+- The site has to allow being embedded. A site that forbids it (`X-Frame-Options` / `frame-ancestors`) shows a browser error inside the frame, which the card cannot detect. On an `https` dashboard the games URL must be `https` too.
 
 ### Reward from the photo, "medalha do dia" and streak (v2.11.0+)
 

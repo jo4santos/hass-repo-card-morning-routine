@@ -1,7 +1,203 @@
 import { LitElement, html, css } from "https://cdn.jsdelivr.net/gh/lit/dist@2/all/lit-all.min.js";
 
-// Morning Routine Card v2.11.0 - Reward image generated from the photo, "medalha do dia" fallback and streak
+// Morning Routine Card v2.11.1 - Optional "Jogos" button next to "Ver Recompensa", opening the games site in a full-screen frame
+// v2.11.0 - Reward image generated from the photo, "medalha do dia" fallback and streak
 // (needs the Morning Routine integration v2.13.0+ for the new reward type and the streak; older versions keep working)
+
+const CARD_VERSION = "2.11.1";
+
+// ---------------------------------------------------------------------------
+// Games: full-screen frame
+// The overlay lives in document.body (not in the card's shadow DOM) so it escapes
+// the card, the Bubble Card pop-up and any transformed / overflow-hidden ancestor.
+// Only one overlay exists at a time (module-level singleton).
+// ---------------------------------------------------------------------------
+const GAMES_LOAD_HINT_MS = 8000;
+let activeGamesOverlay = null;
+
+const GAMES_OVERLAY_CSS = `
+.mrc-games-overlay {
+    position: fixed; inset: 0; top: 0; left: 0;
+    width: 100vw; height: 100vh; height: 100dvh;
+    margin: 0; padding: 0; border: 0; box-sizing: border-box;
+    z-index: 2147483647;
+    background: #11111b; color: #f4f4f8;
+    font-family: var(--paper-font-body1_-_font-family, Roboto, "Noto Sans", Arial, sans-serif);
+    overflow: hidden; overscroll-behavior: contain;
+}
+.mrc-games-overlay:fullscreen { width: 100%; height: 100%; }
+.mrc-games-overlay:-webkit-full-screen { width: 100%; height: 100%; }
+.mrc-games-overlay::backdrop { background: #11111b; }
+.mrc-games-loading {
+    position: absolute; inset: 0; z-index: 0;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 16px; padding: 24px; text-align: center; box-sizing: border-box;
+}
+.mrc-games-loading p { margin: 0; font-size: 20px; font-weight: 500; }
+.mrc-games-hint {
+    position: absolute; z-index: 2; left: 50%; transform: translateX(-50%);
+    bottom: max(12px, env(safe-area-inset-bottom, 0px));
+    max-width: calc(100% - 24px); box-sizing: border-box;
+    display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px 12px;
+    padding: 8px 8px 8px 16px; border-radius: 28px;
+    border: 1px solid rgba(255, 255, 255, 0.3); background: rgba(17, 17, 27, 0.88); color: #f4f4f8;
+}
+.mrc-games-hint[hidden], .mrc-games-overlay.loaded .mrc-games-hint { display: none; }
+.mrc-games-hint p { margin: 0; font-size: 14px; }
+.mrc-games-newwindow {
+    min-height: 44px; padding: 8px 18px; border: 0; border-radius: 999px; white-space: nowrap;
+    background: #8aadf4; color: #181926; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer;
+}
+.mrc-games-frame {
+    position: absolute; inset: 0; z-index: 1;
+    width: 100%; height: 100%; border: 0; display: block; background: transparent;
+}
+.mrc-games-overlay.loaded .mrc-games-frame { background: #fff; }
+.mrc-games-overlay.loaded .mrc-games-loading { display: none; }
+.mrc-games-close {
+    position: absolute; z-index: 2;
+    top: max(8px, env(safe-area-inset-top, 0px)); right: max(8px, env(safe-area-inset-right, 0px));
+    width: 44px; height: 44px; padding: 0; margin: 0; box-sizing: border-box;
+    display: flex; align-items: center; justify-content: center;
+    border: 1px solid rgba(255, 255, 255, 0.55); border-radius: 50%;
+    background: rgba(17, 17, 27, 0.72); color: #fff; cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+}
+.mrc-games-close:hover { background: rgba(17, 17, 27, 0.9); }
+.mrc-games-close:focus-visible, .mrc-games-newwindow:focus-visible { outline: 3px solid #8aadf4; outline-offset: 2px; }
+.mrc-games-close svg { width: 22px; height: 22px; display: block; pointer-events: none; }
+`;
+
+// Only http(s) pages can be framed (relative URLs are resolved against the dashboard)
+function normalizeGamesUrl(raw) {
+    if (typeof raw !== "string" || !raw.trim()) return null;
+    try {
+        const url = new URL(raw.trim(), window.location.href);
+        return (url.protocol === "https:" || url.protocol === "http:") ? url.href : null;
+    } catch (e) {
+        return null;
+    }
+}
+
+function closeGamesOverlay({ restoreFocus = true } = {}) {
+    const active = activeGamesOverlay;
+    if (!active) return;
+    activeGamesOverlay = null;
+    clearTimeout(active.hintTimer);
+    document.removeEventListener("keydown", active.onKeydown, true);
+    // Leaving the overlay also leaves the browser full screen (if we are the full-screen element)
+    try {
+        const fsEl = document.fullscreenElement || document.webkitFullscreenElement;
+        if (fsEl === active.overlay) {
+            const exit = document.exitFullscreen || document.webkitExitFullscreen;
+            const result = exit && exit.call(document);
+            if (result && result.catch) result.catch(() => {});
+        }
+    } catch (e) { /* ignore */ }
+    // Removing the iframe stops the game (and its sound)
+    active.iframe.remove();
+    active.overlay.remove();
+    document.body.style.overflow = active.prevBodyOverflow;
+    document.documentElement.style.overflow = active.prevHtmlOverflow;
+    if (restoreFocus) {
+        const target = active.getFocusTarget && active.getFocusTarget();
+        if (target && target.isConnected) {
+            try { target.focus({ preventScroll: true }); } catch (e) { /* ignore */ }
+        }
+    }
+}
+
+function openGamesOverlay({ url, title, owner, getFocusTarget }) {
+    closeGamesOverlay({ restoreFocus: false }); // only one at a time
+
+    const overlay = document.createElement("div");
+    overlay.className = "mrc-games-overlay";
+    overlay.setAttribute("role", "dialog");
+    overlay.setAttribute("aria-modal", "true");
+    overlay.setAttribute("aria-label", title);
+
+    const style = document.createElement("style");
+    style.textContent = GAMES_OVERLAY_CSS;
+
+    const loading = document.createElement("div");
+    loading.className = "mrc-games-loading";
+    const loadingText = document.createElement("p");
+    loadingText.setAttribute("role", "status");
+    loadingText.textContent = "A abrir os jogos…";
+    const hint = document.createElement("div");
+    hint.className = "mrc-games-hint";
+    hint.hidden = true;
+    const hintText = document.createElement("p");
+    hintText.textContent = "Está a demorar?";
+    const newWindow = document.createElement("button");
+    newWindow.type = "button";
+    newWindow.className = "mrc-games-newwindow";
+    newWindow.textContent = "Abrir numa nova janela";
+    newWindow.addEventListener("click", () => window.open(url, "_blank", "noopener"));
+    hint.append(hintText, newWindow);
+    loading.append(loadingText);
+
+    const iframe = document.createElement("iframe");
+    iframe.className = "mrc-games-frame";
+    iframe.title = title;
+    iframe.setAttribute("allow", "fullscreen; autoplay; gamepad");
+    iframe.setAttribute("allowfullscreen", "");
+    iframe.setAttribute("referrerpolicy", "no-referrer");
+    // src before the frame is attached: an empty frame would fire "load" for about:blank
+    iframe.src = url;
+
+    const close = document.createElement("button");
+    close.type = "button";
+    close.className = "mrc-games-close";
+    close.setAttribute("aria-label", "Fechar jogos");
+    close.title = "Fechar jogos";
+    close.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>';
+    close.addEventListener("click", () => closeGamesOverlay());
+
+    const onKeydown = (e) => {
+        if (e.key !== "Escape") return;
+        // Only reaches us when focus is in the dashboard document (not inside the game)
+        e.preventDefault();
+        e.stopPropagation();
+        closeGamesOverlay();
+    };
+
+    const active = {
+        overlay, iframe, owner, getFocusTarget, onKeydown,
+        prevBodyOverflow: document.body.style.overflow,
+        prevHtmlOverflow: document.documentElement.style.overflow,
+        hintTimer: null,
+    };
+
+    iframe.addEventListener("load", () => {
+        if (activeGamesOverlay !== active) return;
+        clearTimeout(active.hintTimer);
+        overlay.classList.add("loaded");
+    });
+    // A blocked embed cannot be detected; after a while offer the way out
+    // (a small bar above the frame, so it can be used whatever the frame shows)
+    active.hintTimer = setTimeout(() => {
+        if (activeGamesOverlay === active && !overlay.classList.contains("loaded")) hint.hidden = false;
+    }, GAMES_LOAD_HINT_MS);
+
+    overlay.append(style, loading, iframe, hint, close);
+    activeGamesOverlay = active;
+    document.body.style.overflow = "hidden";
+    document.documentElement.style.overflow = "hidden";
+    document.body.appendChild(overlay);
+    document.addEventListener("keydown", onKeydown, true);
+
+    // Real full screen when the browser allows it (we are inside the tap); the fixed overlay is the fallback.
+    // Leaving the browser full screen (Esc / system gesture) does not close the overlay.
+    try {
+        const request = overlay.requestFullscreen || overlay.webkitRequestFullscreen;
+        const result = request && request.call(overlay);
+        if (result && result.catch) result.catch(() => {});
+    } catch (e) { /* ignore */ }
+
+    try { close.focus({ preventScroll: true }); } catch (e) { /* ignore */ }
+    return active;
+}
 
 class MorningRoutineCard extends LitElement {
     static properties = {
@@ -105,6 +301,7 @@ class MorningRoutineCard extends LitElement {
         this._config.layout = config.layout || "horizontal";
         this._config.show_progress = config.show_progress !== false;
         this._config.compact = config.compact || false;
+        this._games = this._parseGamesConfig(config);
 
         console.log("Morning Routine Card configured for entities:", config.children.map(c => c.entity));
     }
@@ -114,6 +311,44 @@ class MorningRoutineCard extends LitElement {
         if (this._timerInterval) {
             clearInterval(this._timerInterval);
         }
+        // The games frame lives in document.body: do not leave it behind
+        if (activeGamesOverlay && activeGamesOverlay.owner === this) {
+            closeGamesOverlay({ restoreFocus: false });
+        }
+    }
+
+    // Optional: games: { url, label, icon } (or games: "<url>" / games_url: "<url>")
+    _parseGamesConfig(config) {
+        const games = config.games;
+        const raw = typeof games === 'string' ? games : (games && games.url) || config.games_url;
+        if (!raw) return null;
+        const url = normalizeGamesUrl(raw);
+        if (!url) {
+            console.warn("Morning Routine Card: 'games' needs an http(s) url, ignoring:", raw);
+            return null;
+        }
+        const options = games && typeof games === 'object' ? games : {};
+        return {
+            url,
+            label: (typeof options.label === 'string' && options.label.trim()) || 'Jogos',
+            icon: (typeof options.icon === 'string' && options.icon.trim()) || 'mdi:gamepad-variant-outline',
+        };
+    }
+
+    _openGames(e, child) {
+        if (!this._games) return;
+        const button = e?.currentTarget || null;
+        const entity = child?.entity;
+        openGamesOverlay({
+            url: this._games.url,
+            title: this._games.label,
+            owner: this,
+            getFocusTarget: () => {
+                if (button && button.isConnected) return button;
+                const buttons = [...(this.shadowRoot?.querySelectorAll('.games-button') || [])];
+                return buttons.find(b => b.dataset.entity === entity) || buttons[0] || null;
+            },
+        });
     }
 
     updated(changedProperties) {
@@ -451,11 +686,18 @@ class MorningRoutineCard extends LitElement {
                 </div>
 
                 ${allComplete ? html`
-                    <div class="button-container">
+                    <div class="button-container ${this._games ? 'has-games' : ''}">
                         <button class="reward-button" @click=${() => this._showRewardModal(child)}>
                             <ha-icon icon="mdi:trophy"></ha-icon>
                             <span>Ver Recompensa</span>
                         </button>
+                        ${this._games ? html`
+                            <button class="reward-button games-button" data-entity="${child.entity}"
+                                    @click=${(e) => this._openGames(e, child)}>
+                                <ha-icon icon="${this._games.icon}"></ha-icon>
+                                <span>${this._games.label}</span>
+                            </button>
+                        ` : ''}
                     </div>
                 ` : ''}
             </div>
@@ -2015,6 +2257,23 @@ class MorningRoutineCard extends LitElement {
             --mdc-icon-size: 24px;
         }
 
+        /* "Ver Recompensa" + "Jogos" side by side: natural width when there is room,
+           equal halves when the row is narrow */
+        .button-container.has-games { gap: 8px; }
+        .button-container.has-games .reward-button {
+            flex: 1 1 0;
+            min-width: 0;
+            max-width: max-content;
+            justify-content: center;
+        }
+        .button-container.has-games .reward-button ha-icon { flex: 0 0 auto; }
+        .button-container.has-games .reward-button span {
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
         .audio-button {
             --mdc-theme-primary: #4CAF50;
             --mdc-theme-on-primary: white;
@@ -2681,6 +2940,7 @@ class MorningRoutineCard extends LitElement {
         .weather-description { font-weight: 500; opacity: 1; color: var(--secondary-text-color); }
         .announcement-button, .reward-button { border: 0; border-radius: 999px; background-color: var(--secondary-background-color); min-height: 44px; font-weight: 500; }
         .reward-button { color: #181926; background-color: #eed49f; font-weight: 600; }
+        .reward-button.games-button { background-color: #8aadf4; }
         .child-section { border: 0; border-radius: 16px; background: var(--secondary-background-color); padding: 14px; }
         .child-section.error { border: 0; color: #ed8796; }
         .child-header h2 { font-size: 18px; font-weight: 600; color: var(--primary-text-color); }
@@ -2838,7 +3098,7 @@ window.customCards.push({
 });
 
 console.info(
-    `%c MORNING-ROUTINE-CARD %c 2.11.0 - Reward image from the photo, medalha do dia and streak `,
+    `%c MORNING-ROUTINE-CARD %c ${CARD_VERSION} - Games button with full-screen frame `,
     "color: white; font-weight: bold; background: #4CAF50",
     "color: white; font-weight: bold; background: #2196F3"
 );
