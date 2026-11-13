@@ -1,6 +1,7 @@
 import { LitElement, html, css } from "https://cdn.jsdelivr.net/gh/lit/dist@2/all/lit-all.min.js";
 
-// Morning Routine Card v2.10.1 - Stable dialog sizes (camera, audio, photo no longer jump while loading)
+// Morning Routine Card v2.11.0 - Reward image generated from the photo, "medalha do dia" fallback and streak
+// (needs the Morning Routine integration v2.13.0+ for the new reward type and the streak; older versions keep working)
 
 class MorningRoutineCard extends LitElement {
     static properties = {
@@ -15,6 +16,8 @@ class MorningRoutineCard extends LitElement {
         _showReward: { type: Boolean, state: true },
         _rewardChild: { type: Object, state: true },
         _currentRewardQuote: { type: String, state: true },
+        _rewardZoom: { type: Boolean, state: true },
+        _rewardImageFailedUrl: { type: String, state: true },
         _isRecording: { type: Boolean, state: true },
         _recordingTime: { type: Number, state: true },
         _photoChild: { type: Object, state: true },
@@ -46,6 +49,8 @@ class MorningRoutineCard extends LitElement {
         this._rewardChild = null;
         this._photoChild = null;
         this._currentRewardQuote = null;
+        this._rewardZoom = false;
+        this._rewardImageFailedUrl = null;
         this._isRecording = false;
         this._recordingTime = 0;
         this._mediaRecorder = null;
@@ -244,6 +249,12 @@ class MorningRoutineCard extends LitElement {
                 audio_recording: entity.attributes.audio_recording,
                 reward_image: entity.attributes.reward_image,
                 reward_video_id: entity.attributes.reward_video_id,
+                // Integration v2.13.0+ (undefined with older versions: the card then behaves as before)
+                reward_type: entity.attributes.reward_type,
+                reward_image_status: entity.attributes.reward_image_status,
+                daily_phrase: entity.attributes.daily_phrase,
+                streak: entity.attributes.streak,
+                best_streak: entity.attributes.best_streak,
                 all_complete: entity.attributes.all_complete || false,
                 error: false,
             };
@@ -461,6 +472,7 @@ class MorningRoutineCard extends LitElement {
                         @click=${() => this._showHistoryModal(child)}>
                         <ha-icon icon="mdi:history"></ha-icon>
                     </mwc-icon-button>
+                    ${this._renderStreakChip(child)}
                 </div>
                 <div class="header-right">
                     <mwc-icon-button
@@ -495,6 +507,33 @@ class MorningRoutineCard extends LitElement {
                     </div>
                 </div>
             </div>
+        `;
+    }
+
+    _getStreak(child) {
+        const streak = Number(child?.streak);
+        return Number.isFinite(streak) && streak > 0 ? Math.floor(streak) : 0;
+    }
+
+    _getBestStreak(child) {
+        const best = Number(child?.best_streak);
+        return Math.max(Number.isFinite(best) && best > 0 ? Math.floor(best) : 0, this._getStreak(child));
+    }
+
+    _formatStreak(days) {
+        return days === 1 ? '1 dia seguido' : `${days} dias seguidos`;
+    }
+
+    _renderStreakChip(child) {
+        // Discreet: only from the second consecutive day on
+        const streak = this._getStreak(child);
+        if (streak < 2) return '';
+        const label = `${this._formatStreak(streak)} com a rotina completa`;
+        return html`
+            <span class="streak-chip" title="${label}" aria-label="${label}" role="img">
+                <ha-icon icon="mdi:fire"></ha-icon>
+                <span>${streak}</span>
+            </span>
         `;
     }
 
@@ -1019,6 +1058,8 @@ class MorningRoutineCard extends LitElement {
         this._rewardChild = child;
         // Pick a random quote
         this._currentRewardQuote = this._rewardQuotes[Math.floor(Math.random() * this._rewardQuotes.length)];
+        this._rewardZoom = false;
+        this._rewardImageFailedUrl = null;
         this._showReward = true;
     }
 
@@ -1026,6 +1067,52 @@ class MorningRoutineCard extends LitElement {
         this._showReward = false;
         this._rewardChild = null;
         this._currentRewardQuote = null;
+        this._rewardZoom = false;
+        this._rewardImageFailedUrl = null;
+    }
+
+    _toggleRewardZoom(e) {
+        e?.stopPropagation?.();
+        this._rewardZoom = !this._rewardZoom;
+    }
+
+    _onRewardImageError(url) {
+        // The file is gone or cannot be loaded: fall back to the "medalha do dia"
+        this._rewardImageFailedUrl = url;
+        this._rewardZoom = false;
+    }
+
+    _getLiveChild(child) {
+        // The modal keeps the child it was opened for; always render its latest state,
+        // so the reward updates by itself when the sensor changes (generating -> ready)
+        if (!child) return null;
+        return this._children.find(c => c.entity === child.entity && !c.error) || child;
+    }
+
+    _getRewardImageUrl(child) {
+        const image = child?.reward_image;
+        if (!image || typeof image !== 'string') return null;
+        // v2.13.0+ gives a ready /local URL (with a cache-busting query); older values are file paths
+        if (image.startsWith('/local/morning_routine_photos/')) return image;
+        return `/local/morning_routine_photos/${this._getFilename(image)}`;
+    }
+
+    _getRewardView(child) {
+        // Which reward to show. Only the reward type "image generated from the photo"
+        // (integration v2.13.0+) uses the new views; everything else is unchanged.
+        if (child?.reward_type !== 'ai_image_from_photo') return 'legacy';
+        const url = this._getRewardImageUrl(child);
+        if (child.reward_image_status === 'ready' && url && url !== this._rewardImageFailedUrl) return 'image';
+        if (child.reward_image_status === 'generating') return 'waiting';
+        return 'medal';  // failed, no photo, no image, or image file missing
+    }
+
+    _getTodayLabel() {
+        try {
+            return new Date().toLocaleDateString('pt-PT', { weekday: 'long', day: 'numeric', month: 'long' });
+        } catch (e) {
+            return '';
+        }
     }
 
     _getChildArticle(childName) {
@@ -1119,13 +1206,17 @@ class MorningRoutineCard extends LitElement {
     _renderRewardModal() {
         if (!this._showReward || !this._rewardChild) return html``;
 
-        const hasVideo = this._rewardChild.reward_video_id;
-        const hasAIImage = this._rewardChild.reward_image;
+        const child = this._getLiveChild(this._rewardChild);
+        const view = this._getRewardView(child);
+        if (view !== 'legacy') return this._renderPhotoRewardModal(child, view);
+
+        const hasVideo = child.reward_video_id;
+        const hasAIImage = child.reward_image;
 
         return html`
             <div class="reward-modal">
                 <div class="reward-modal-header">
-                        <h2>🎉 Recompensa d${this._getChildArticle(this._rewardChild.name).toLowerCase()} ${this._rewardChild.name}! 🎉</h2>
+                        <h2>🎉 Recompensa d${this._getChildArticle(child.name).toLowerCase()} ${child.name}! 🎉</h2>
                         <mwc-icon-button @click=${this._closeRewardModal}>
                             <ha-icon icon="mdi:close"></ha-icon>
                         </mwc-icon-button>
@@ -1134,14 +1225,14 @@ class MorningRoutineCard extends LitElement {
                         ${hasVideo ? html`
                             <div class="video-reward-container">
                                 <iframe
-                                    src="https://www.youtube.com/embed/${this._rewardChild.reward_video_id}?autoplay=1"
+                                    src="https://www.youtube.com/embed/${child.reward_video_id}?autoplay=1"
                                     frameborder="0"
                                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                                     allowfullscreen
                                 ></iframe>
                             </div>
                         ` : hasAIImage ? html`
-                            <img src="/local/morning_routine_photos/${this._getFilename(this._rewardChild.reward_image)}"
+                            <img src="/local/morning_routine_photos/${this._getFilename(child.reward_image)}"
                                  alt="Imagem de Recompensa" />
                         ` : html`
                             <div class="reward-quote-container">
@@ -1153,6 +1244,132 @@ class MorningRoutineCard extends LitElement {
                             Completaste a rotina matinal! Parabéns! 🎊
                         </p>
                     </div>
+            </div>
+        `;
+    }
+
+    // Reward type "image generated from the photo": generated image, waiting state or "medalha do dia"
+    _renderPhotoRewardModal(child, view) {
+        const article = this._getChildArticle(child.name).toLowerCase();
+
+        return html`
+            <div class="reward-modal photo-reward" style="--child-color: ${child.color || '#8aadf4'};">
+                <div class="reward-modal-header">
+                    <h2>Recompensa d${article} ${child.name}</h2>
+                    <mwc-icon-button @click=${this._closeRewardModal} aria-label="Fechar">
+                        <ha-icon icon="mdi:close"></ha-icon>
+                    </mwc-icon-button>
+                </div>
+                <div class="reward-modal-content photo-reward-content" aria-live="polite">
+                    ${view === 'image' ? this._renderRewardImage(child)
+                        : view === 'waiting' ? this._renderRewardWaiting(child)
+                        : this._renderRewardMedal(child)}
+                </div>
+            </div>
+            ${view === 'image' && this._rewardZoom ? this._renderRewardZoom(child) : ''}
+        `;
+    }
+
+    _renderRewardImage(child) {
+        const url = this._getRewardImageUrl(child);
+        const article = this._getChildArticle(child.name).toLowerCase();
+        const alt = `Imagem de recompensa d${article} ${child.name}, desenhada a partir da fotografia de hoje`;
+        const streak = this._getStreak(child);
+
+        return html`
+            <button class="reward-image-button" @click=${this._toggleRewardZoom}
+                    aria-label="Ver a imagem em ecrã inteiro">
+                <img class="reward-image" src="${url}" alt="${alt}"
+                     @error=${() => this._onRewardImageError(url)} />
+                <span class="reward-image-zoom-hint" aria-hidden="true">
+                    <ha-icon icon="mdi:fullscreen"></ha-icon>
+                </span>
+            </button>
+            <div class="reward-caption">
+                <span class="reward-caption-name">${child.name}</span>
+                <span class="reward-caption-date">${this._getTodayLabel()}</span>
+                ${streak > 0 ? html`
+                    <span class="reward-caption-streak">
+                        <ha-icon icon="mdi:fire"></ha-icon>
+                        <span>${this._formatStreak(streak)}</span>
+                    </span>
+                ` : ''}
+            </div>
+        `;
+    }
+
+    _renderRewardZoom(child) {
+        const url = this._getRewardImageUrl(child);
+        return html`
+            <div class="reward-zoom" role="button" tabindex="0" aria-label="Fechar o ecrã inteiro"
+                 @click=${this._toggleRewardZoom}
+                 @keydown=${(e) => { if (e.key === 'Enter' || e.key === ' ') this._toggleRewardZoom(e); }}>
+                <img src="${url}" alt="Imagem de recompensa de ${child.name} em ecrã inteiro" />
+                <span class="reward-zoom-close" aria-hidden="true">
+                    <ha-icon icon="mdi:close"></ha-icon>
+                </span>
+            </div>
+        `;
+    }
+
+    _renderRewardWaiting(child) {
+        return html`
+            <div class="reward-waiting">
+                <div class="reward-waiting-art" aria-hidden="true">
+                    <span class="reward-waiting-ring"></span>
+                    <ha-icon icon="mdi:palette"></ha-icon>
+                </div>
+                <p class="reward-waiting-title">A tua imagem está quase pronta…</p>
+                <p class="reward-waiting-text">
+                    Está a ser desenhada a partir da tua fotografia. Aparece aqui sozinha, não precisas de fazer nada.
+                </p>
+            </div>
+        `;
+    }
+
+    _renderRewardMedal(child) {
+        const streak = this._getStreak(child);
+        const best = this._getBestStreak(child);
+        const phrase = (child.daily_phrase || '').toString().trim();
+        const isRecord = streak >= 2 && streak >= best;
+        // Fixed pseudo-random confetti (no layout shift between renders)
+        const confetti = [6, 14, 23, 31, 38, 47, 55, 62, 70, 78, 86, 94];
+
+        return html`
+            <div class="reward-medal-card">
+                <div class="reward-confetti" aria-hidden="true">
+                    ${confetti.map((left, i) => html`
+                        <span class="confetti-piece c${i % 4}"
+                              style="left: ${left}%; animation-delay: ${(i * 0.37) % 2.6}s; animation-duration: ${3.2 + (i % 5) * 0.45}s;"></span>
+                    `)}
+                </div>
+                <p class="reward-medal-kicker">Medalha do dia</p>
+                <div class="reward-medal" role="img"
+                     aria-label="${streak > 0 ? `Medalha: ${this._formatStreak(streak)}` : 'Medalha de rotina completa'}">
+                    <span class="reward-medal-ribbon left"></span>
+                    <span class="reward-medal-ribbon right"></span>
+                    <span class="reward-medal-disc">
+                        ${streak > 0 ? html`
+                            <span class="reward-medal-number">${streak}</span>
+                        ` : html`
+                            <ha-icon icon="mdi:trophy"></ha-icon>
+                        `}
+                    </span>
+                </div>
+                <p class="reward-medal-streak">
+                    ${streak > 0 ? this._formatStreak(streak) : 'Rotina completa!'}
+                </p>
+                ${phrase ? html`
+                    <p class="reward-medal-phrase">${phrase}</p>
+                ` : html`
+                    <p class="reward-medal-phrase">Completaste tudo, ${child.name}. Parabéns!</p>
+                `}
+                ${best > 0 ? html`
+                    <p class="reward-medal-best">
+                        <ha-icon icon="mdi:trophy-outline"></ha-icon>
+                        <span>${isRecord ? `Novo recorde: ${this._formatStreak(best)}` : `Melhor série: ${this._formatStreak(best)}`}</span>
+                    </p>
+                ` : ''}
             </div>
         `;
     }
@@ -2506,6 +2723,82 @@ class MorningRoutineCard extends LitElement {
         #camera-preview { display: block; aspect-ratio: 4 / 3; object-fit: cover; background: #000; }
         .audio-recorder-container { min-height: 280px; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; justify-content: center; }
         .photo-modal-content { min-height: min(60vh, 480px); box-sizing: border-box; display: flex; align-items: center; justify-content: center; }
+
+        /* ------------------------------------------------------------------
+           Reward from the photo (v2.11.0): generated image, waiting state, "medalha do dia", streak.
+           Same sober palette as the unified style; all motion stops with prefers-reduced-motion.
+           ------------------------------------------------------------------ */
+        .streak-chip { display: inline-flex; align-items: center; gap: 2px; height: 28px; padding: 0 9px 0 6px; border-radius: 999px; background: var(--card-background-color); color: var(--primary-text-color); font-size: 14px; font-weight: 600; line-height: 1; font-variant-numeric: tabular-nums; white-space: nowrap; }
+        .streak-chip ha-icon { --mdc-icon-size: 16px; width: 16px; height: 16px; display: flex; color: #f5a97f; }
+
+                .photo-reward { color: var(--primary-text-color); }
+        .photo-reward .reward-modal-header h2 { font-size: 20px; font-weight: 600; min-width: 0; overflow-wrap: anywhere; }
+        .photo-reward-content { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; min-height: min(62vh, 460px); box-sizing: border-box; overflow: auto; }
+
+        .reward-image-button { position: relative; display: inline-flex; align-items: center; justify-content: center; max-width: 100%; padding: 0; margin: 0; border: 0; background: none; cursor: zoom-in; border-radius: 12px; font: inherit; color: inherit; }
+        .reward-image-button:focus-visible { outline: 3px solid var(--primary-color, #8aadf4); outline-offset: 3px; }
+        .reward-modal-content .reward-image { display: block; max-width: 100%; max-height: calc(90vh - 190px); width: auto; height: auto; object-fit: contain; border-radius: 12px; margin: 0; background: var(--secondary-background-color); }
+        .reward-image-zoom-hint { position: absolute; right: 8px; bottom: 8px; display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 50%; background: rgba(24, 25, 38, 0.6); color: #fff; --mdc-icon-size: 24px; pointer-events: none; }
+        .reward-caption { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: center; gap: 4px 12px; color: var(--primary-text-color); }
+        .reward-caption-name { font-size: 18px; font-weight: 600; }
+        .reward-caption-date { font-size: 15px; color: var(--secondary-text-color); }
+        .reward-caption-streak { display: inline-flex; align-items: center; gap: 4px; font-size: 15px; font-weight: 500; align-self: center; }
+        .reward-caption-streak ha-icon { --mdc-icon-size: 18px; width: 18px; height: 18px; display: flex; color: #f5a97f; }
+
+        .reward-zoom { position: fixed; inset: 0; z-index: 10; display: flex; align-items: center; justify-content: center; background: rgba(0, 0, 0, 0.94); cursor: zoom-out; touch-action: pinch-zoom; }
+        .reward-zoom img { max-width: 100vw; max-height: 100vh; width: auto; height: auto; object-fit: contain; }
+        .reward-zoom:focus-visible { outline: 3px solid #fff; outline-offset: -3px; }
+        .reward-zoom-close { position: absolute; top: 12px; right: 12px; display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; border-radius: 50%; background: rgba(255, 255, 255, 0.16); color: #fff; --mdc-icon-size: 24px; }
+
+        .reward-waiting { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 24px 8px; max-width: 460px; }
+        .reward-waiting-art { position: relative; display: flex; align-items: center; justify-content: center; width: 112px; height: 112px; margin-bottom: 8px; color: var(--child-color, #8aadf4); --mdc-icon-size: 48px; }
+        .reward-waiting-art ha-icon { width: 48px; height: 48px; display: flex; }
+        .reward-waiting-ring { position: absolute; inset: 0; border-radius: 50%; border: 6px solid var(--secondary-background-color); border-top-color: var(--child-color, #8aadf4); animation: mr-spin 1.2s linear infinite; }
+        .reward-waiting-title { margin: 0; font-size: 24px; font-weight: 600; line-height: 1.25; color: var(--primary-text-color); }
+        .reward-waiting-text { margin: 0; font-size: 16px; line-height: 1.45; color: var(--secondary-text-color); }
+        @keyframes mr-spin { to { transform: rotate(360deg); } }
+
+        .reward-medal-card { position: relative; overflow: hidden; display: flex; flex-direction: column; align-items: center; gap: 8px; width: 100%; box-sizing: border-box; padding: 28px 20px 24px; border-radius: 16px; background: var(--secondary-background-color); color: var(--primary-text-color); }
+        .reward-medal-kicker { margin: 0; font-size: 13px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--secondary-text-color); }
+        .reward-medal { position: relative; width: 150px; height: 176px; margin: 4px 0; flex: none; }
+        .reward-medal-ribbon { position: absolute; top: 0; width: 34px; height: 84px; background: var(--child-color, #8aadf4); border-radius: 4px; }
+        .reward-medal-ribbon.left { left: 40px; transform: rotate(-20deg); transform-origin: bottom center; }
+        .reward-medal-ribbon.right { right: 40px; transform: rotate(20deg); transform-origin: bottom center; filter: brightness(0.85); }
+        .reward-medal-disc { position: absolute; left: 50%; bottom: 0; width: 124px; height: 124px; margin-left: -62px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; border-radius: 50%; background: #eed49f; border: 8px solid #e5c07b; color: #181926; --mdc-icon-size: 56px; animation: mr-medal-in 0.7s cubic-bezier(0.2, 0.9, 0.3, 1.3) both; }
+        .reward-medal-disc ha-icon { width: 56px; height: 56px; display: flex; }
+        .reward-medal-number { font-size: 60px; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+        .reward-medal-streak { margin: 4px 0 0; font-size: 22px; font-weight: 600; }
+        .reward-medal-phrase { margin: 6px 0 0; max-width: 28ch; font-size: clamp(22px, 4.2vw, 30px); font-weight: 600; line-height: 1.25; text-wrap: balance; overflow-wrap: anywhere; }
+        .reward-medal-best { display: inline-flex; align-items: center; gap: 6px; margin: 10px 0 0; font-size: 15px; color: var(--secondary-text-color); }
+        .reward-medal-best ha-icon { --mdc-icon-size: 18px; width: 18px; height: 18px; display: flex; }
+        .reward-medal-card > p, .reward-medal { position: relative; z-index: 1; }
+        @keyframes mr-medal-in { from { transform: scale(0.6) rotate(-12deg); opacity: 0; } to { transform: none; opacity: 1; } }
+
+        .reward-confetti { position: absolute; inset: 0; pointer-events: none; }
+        .confetti-piece { position: absolute; top: -16px; width: 9px; height: 15px; border-radius: 2px; opacity: 0.9; animation: mr-confetti 3.6s linear infinite; }
+        .confetti-piece.c0 { background: #a6da95; }
+        .confetti-piece.c1 { background: #eed49f; }
+        .confetti-piece.c2 { background: #ed8796; width: 10px; height: 10px; border-radius: 50%; }
+        .confetti-piece.c3 { background: #8aadf4; }
+        @keyframes mr-confetti {
+            0% { transform: translateY(0) rotate(0deg); }
+            100% { transform: translateY(560px) rotate(540deg); }
+        }
+
+        @media (max-width: 480px) {
+            .photo-reward .reward-modal-header h2 { font-size: 18px; }
+            .reward-modal-content .reward-image { max-height: calc(90vh - 210px); }
+            .reward-medal-card { padding: 22px 14px 20px; }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .reward-waiting-ring { animation: none; border-color: var(--child-color, #8aadf4); opacity: 0.35; }
+            .reward-medal-disc { animation: none; }
+            /* Confetti stays as a still decoration along the top edge */
+            .confetti-piece { animation: none; top: 10px; }
+            .confetti-piece:nth-child(odd) { top: 26px; transform: rotate(35deg); }
+            .confetti-piece:nth-child(3n) { transform: rotate(-25deg); }
+        }
     `;
 
     static getConfigElement() {
@@ -2545,7 +2838,7 @@ window.customCards.push({
 });
 
 console.info(
-    `%c MORNING-ROUTINE-CARD %c 2.8.16 - Show max daily temperature in weather section `,
+    `%c MORNING-ROUTINE-CARD %c 2.11.0 - Reward image from the photo, medalha do dia and streak `,
     "color: white; font-weight: bold; background: #4CAF50",
     "color: white; font-weight: bold; background: #2196F3"
 );

@@ -9,6 +9,8 @@ A beautiful, kid-friendly custom Lovelace card for displaying and interacting wi
 - **Activity grid**: Colorful, icon-based activity tiles
 - **Camera capture**: Built-in camera modal for taking photos (HTTPS required)
 - **Reward display**: Show AI-generated reward images when routines are complete
+- **Reward from the photo** (v2.11.0+): the cartoon generated from the child's morning photo, a waiting state while it is being made, and a "medalha do dia" fallback
+- **Streak** (v2.11.0+): consecutive completed routine days, shown discreetly next to the child's name and in the reward
 - **Interactive**: Click activities to mark them complete
 - **Responsive**: Works on tablets, desktops, and mobile devices
 - **Customizable**: Configure colors, layout, and display options
@@ -106,6 +108,26 @@ When a child completes all activities:
 1. AI-generated reward image appears in their section
 2. Click the reward to view full-screen
 3. Celebration message displays
+
+### Reward from the photo, "medalha do dia" and streak (v2.11.0+)
+
+Needs the Morning Routine integration **v2.13.0 or newer** with the reward type
+"Imagem gerada a partir da fotografia" (`reward_type: ai_image_from_photo`). With an older integration or any
+other reward type the reward works exactly as before. No card configuration is needed.
+
+When all activities are complete, "Ver Recompensa" shows, according to the sensor attributes:
+
+| Sensor state | What the card shows |
+|---|---|
+| `reward_image_status: ready` and `reward_image` set | The generated image, as large as fits, with the child's name, the date and the streak. Tap the image to see it full screen; tap again to go back. |
+| `reward_image_status: generating` | "A tua imagem está quase pronta…" - the image appears by itself as soon as the sensor changes to `ready`. |
+| `failed`, no photo, no image, or the image file cannot be loaded | The **medalha do dia**: a medal with the streak ("5 dias seguidos"), the daily phrase in big type (when there is one), the best streak and confetti. |
+
+The medal needs nothing from outside the card (no video, no image, no network). Animations (confetti, medal,
+waiting ring) stop when the device asks for reduced motion.
+
+From the second consecutive day on, the streak also appears as a small flame icon with the number next to the
+child's name (attributes `streak` / `best_streak`).
 
 ### Color Customization
 
