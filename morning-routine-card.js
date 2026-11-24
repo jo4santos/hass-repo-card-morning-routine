@@ -1,6 +1,6 @@
 import { LitElement, html, css } from "https://cdn.jsdelivr.net/gh/lit/dist@2/all/lit-all.min.js";
 
-// Morning Routine Card v2.13.0 - header_style: 'avatar' (avatar with the progress ring, today's agenda chips, tools on the right) and agenda
+// Morning Routine Card v2.13.1 - header_style: 'avatar' (avatar with the progress ring, today's agenda chips, tools on the right) and agenda
 // v2.12.0 - Header options: show_timer, show_weather, announce ('all' | 'complete' | 'none')
 // v2.11.2 - Photo preview shows the whole camera frame (no crop) in a larger dialog
 // v2.11.0 - Reward image generated from the photo, "medalha do dia" fallback and streak
