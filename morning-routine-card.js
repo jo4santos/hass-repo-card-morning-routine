@@ -1,6 +1,7 @@
 import { LitElement, html, css } from "https://cdn.jsdelivr.net/gh/lit/dist@2/all/lit-all.min.js";
 
-// Morning Routine Card v2.14.2 - avatar style: sections use the theme's card border and radius
+// Morning Routine Card v2.14.3 - avatar style: gap between the children's cards follows the dashboard grid
+// v2.14.2 - avatar style: sections use the theme's card border and radius
 // v2.14.1 - avatar style: sections are the cards, avatar always shows the initial, round tool buttons, lower tiles
 // v2.13.1 - header_style: 'avatar' (avatar with the progress ring, today's agenda chips, tools on the right) and agenda
 // v2.12.0 - Header options: show_timer, show_weather, announce ('all' | 'complete' | 'none')
@@ -8,7 +9,7 @@ import { LitElement, html, css } from "https://cdn.jsdelivr.net/gh/lit/dist@2/al
 // v2.11.0 - Reward image generated from the photo, "medalha do dia" fallback and streak
 // (needs the Morning Routine integration v2.13.0+ for the new reward type and the streak; older versions keep working)
 
-const CARD_VERSION = "2.14.2";
+const CARD_VERSION = "2.14.3";
 
 // ---------------------------------------------------------------------------
 // Games: full-screen frame
@@ -3152,7 +3153,7 @@ class MorningRoutineCard extends LitElement {
         @media (prefers-reduced-motion: reduce) { .avatar-trophy { animation: none; } }
         ha-card.avatar-style { background: none; border: 0; box-shadow: none; --mr-ring-bg: var(--secondary-background-color); }
         .avatar-style .card-content { padding: 0; }
-        .avatar-style .children-container { gap: 12px; }
+        .avatar-style .children-container { gap: var(--ha-section-grid-row-gap, 8px); }
         .avatar-style .child-section { border: var(--ha-card-border-width, 1px) solid var(--ha-card-border-color, var(--divider-color, rgba(128,128,128,0.2))); border-radius: var(--ha-card-border-radius, 12px); padding: 14px 16px 16px; background: var(--card-background-color); }
         .avatar-style .avatar-pct, .avatar-style .agenda-chip { background: var(--secondary-background-color); }
         .avatar-style .agenda-chip.now { background: var(--chip-color); }
