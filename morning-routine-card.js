@@ -6,7 +6,7 @@ import { LitElement, html, css } from "https://cdn.jsdelivr.net/gh/lit/dist@2/al
 // v2.11.0 - Reward image generated from the photo, "medalha do dia" fallback and streak
 // (needs the Morning Routine integration v2.13.0+ for the new reward type and the streak; older versions keep working)
 
-const CARD_VERSION = "2.13.0";
+const CARD_VERSION = "2.13.1";
 
 // ---------------------------------------------------------------------------
 // Games: full-screen frame
@@ -320,6 +320,11 @@ class MorningRoutineCard extends LitElement {
         console.log("Morning Routine Card configured for entities:", config.children.map(c => c.entity));
     }
 
+    connectedCallback() {
+        super.connectedCallback();
+        this._ensureAgenda();
+    }
+
     disconnectedCallback() {
         super.disconnectedCallback();
         if (this._timerInterval) {
@@ -428,6 +433,7 @@ class MorningRoutineCard extends LitElement {
     set hass(hass) {
         const oldHass = this._hass;
         this._hass = hass;
+        this._ensureAgenda();
 
         // Check if any of our entities have actually changed
         if (oldHass && this._config) {
@@ -799,7 +805,7 @@ class MorningRoutineCard extends LitElement {
 
     // ---- v2.13.0: avatar header with today's agenda ----
     _ensureAgenda() {
-        if (!this._agendaCalendars || !this._agendaCalendars.length || this._agendaInterval || !this.isConnected) return;
+        if (!this._hass || !this._agendaCalendars || !this._agendaCalendars.length || this._agendaInterval || !this.isConnected) return;
         this._fetchAgenda();
         this._agendaInterval = setInterval(() => this._fetchAgenda(), this._agendaRefresh);
     }
