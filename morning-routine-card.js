@@ -1,13 +1,13 @@
 import { LitElement, html, css } from "https://cdn.jsdelivr.net/gh/lit/dist@2/all/lit-all.min.js";
 
-// Morning Routine Card v2.14.0 - avatar style: sections are the cards, trophy avatar opens the reward, round tool buttons
+// Morning Routine Card v2.14.1 - avatar style: sections are the cards, avatar always shows the initial, round tool buttons, lower tiles
 // v2.13.1 - header_style: 'avatar' (avatar with the progress ring, today's agenda chips, tools on the right) and agenda
 // v2.12.0 - Header options: show_timer, show_weather, announce ('all' | 'complete' | 'none')
 // v2.11.2 - Photo preview shows the whole camera frame (no crop) in a larger dialog
 // v2.11.0 - Reward image generated from the photo, "medalha do dia" fallback and streak
 // (needs the Morning Routine integration v2.13.0+ for the new reward type and the streak; older versions keep working)
 
-const CARD_VERSION = "2.14.0";
+const CARD_VERSION = "2.14.1";
 
 // ---------------------------------------------------------------------------
 // Games: full-screen frame
@@ -723,7 +723,7 @@ class MorningRoutineCard extends LitElement {
                     ${child.activities.map(activity => this._renderActivity(child, activity))}
                 </div>
 
-                ${allComplete && this._config.header_style !== 'avatar' ? html`
+                ${allComplete ? html`
                     <div class="button-container ${this._games ? 'has-games' : ''}">
                         <button class="reward-button" @click=${() => this._showRewardModal(child)}>
                             <ha-icon icon="mdi:trophy"></ha-icon>
@@ -870,15 +870,6 @@ class MorningRoutineCard extends LitElement {
         const events = this._childAgenda(child);
         return html`
             <div class="child-header avatar-header">
-                ${progress >= 100 ? html`
-                <button class="avatar avatar-reward" type="button" title="Ver recompensa" aria-label="${child.name}: rotina completa. Ver recompensa"
-                        @click=${() => this._showRewardModal(child)}>
-                    <svg viewBox="0 0 68 68" width="68" height="68" aria-hidden="true">
-                        <circle cx="34" cy="34" r="${r}" fill="none" stroke="${color}" stroke-width="6"></circle>
-                    </svg>
-                    <span class="avatar-initial avatar-trophy"><ha-icon icon="mdi:trophy"></ha-icon></span>
-                    <span class="avatar-pct">${String(child.name || '').split(' ')[0]}</span>
-                </button>` : html`
                 <div class="avatar" role="img" aria-label="${child.name}: ${progress}% da rotina">
                     <svg viewBox="0 0 68 68" width="68" height="68" aria-hidden="true">
                         <circle cx="34" cy="34" r="${r}" fill="none" stroke="var(--mr-ring-bg, var(--card-background-color, #e0e0e0))" stroke-width="6"></circle>
@@ -887,7 +878,7 @@ class MorningRoutineCard extends LitElement {
                     </svg>
                     <span class="avatar-initial" style="background: ${color}">${String(child.name || '?').charAt(0)}</span>
                     <span class="avatar-pct">${progress}%</span>
-                </div>`}
+                </div>
                 <div class="agenda-chips">
                     ${events.length ? events.map(ev => html`
                         <span class="agenda-chip ${ev.now ? 'now' : ''}" style="--chip-color: ${color}">
@@ -898,11 +889,6 @@ class MorningRoutineCard extends LitElement {
                 </div>
                 <div class="header-tools">
                     ${this._renderStreakChip(child)}
-                    ${progress >= 100 && this._games ? html`
-                    <button class="tool-btn" type="button" title="${this._games.label}" aria-label="${this._games.label}" data-entity="${child.entity}"
-                            @click=${(e) => this._openGames(e, child)}>
-                        <ha-icon icon="${this._games.icon}"></ha-icon>
-                    </button>` : ''}
                     <button class="tool-btn" type="button" title="Histórico" aria-label="Histórico de ${child.name}" @click=${() => this._showHistoryModal(child)}>
                         <ha-icon icon="mdi:history"></ha-icon>
                     </button>
@@ -3170,6 +3156,11 @@ class MorningRoutineCard extends LitElement {
         .avatar-style .avatar-pct, .avatar-style .agenda-chip { background: var(--secondary-background-color); }
         .avatar-style .agenda-chip.now { background: var(--chip-color); }
         .avatar-style .activity-item:not(.completed) { background-color: var(--secondary-background-color); }
+        .avatar-style .activity-item { min-height: 104px; padding: 8px; }
+        .avatar-style .avatar-header { margin-bottom: 8px; }
+        .avatar-style .child-section { padding: 12px; }
+        .avatar-style .button-container { margin-top: 8px; }
+        .avatar-style .reward-button { min-height: 44px; padding: 0 22px; }
         .streak-chip { display: inline-flex; align-items: center; gap: 2px; height: 28px; padding: 0 9px 0 6px; border-radius: 999px; background: var(--card-background-color); color: var(--primary-text-color); font-size: 14px; font-weight: 600; line-height: 1; font-variant-numeric: tabular-nums; white-space: nowrap; }
         .streak-chip ha-icon { --mdc-icon-size: 16px; width: 16px; height: 16px; display: flex; color: #f5a97f; }
 
