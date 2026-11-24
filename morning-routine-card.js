@@ -1,10 +1,11 @@
 import { LitElement, html, css } from "https://cdn.jsdelivr.net/gh/lit/dist@2/all/lit-all.min.js";
 
-// Morning Routine Card v2.11.2 - Photo preview shows the whole camera frame (no crop) in a larger dialog
+// Morning Routine Card v2.12.0 - Header options: show_timer, show_weather, announce ('all' | 'complete' | 'none')
+// v2.11.2 - Photo preview shows the whole camera frame (no crop) in a larger dialog
 // v2.11.0 - Reward image generated from the photo, "medalha do dia" fallback and streak
 // (needs the Morning Routine integration v2.13.0+ for the new reward type and the streak; older versions keep working)
 
-const CARD_VERSION = "2.11.2";
+const CARD_VERSION = "2.12.0";
 
 // ---------------------------------------------------------------------------
 // Games: full-screen frame
@@ -301,6 +302,10 @@ class MorningRoutineCard extends LitElement {
         this._config.layout = config.layout || "horizontal";
         this._config.show_progress = config.show_progress !== false;
         this._config.compact = config.compact || false;
+        // v2.12.0: show_timer / show_weather (default true) and announce: 'all' (default) | 'complete' | 'none'
+        this._config.show_timer = config.show_timer !== false;
+        this._config.show_weather = config.show_weather !== false;
+        this._config.announce = ['all', 'complete', 'none'].includes(config.announce) ? config.announce : 'all';
         this._games = this._parseGamesConfig(config);
 
         console.log("Morning Routine Card configured for entities:", config.children.map(c => c.entity));
@@ -522,12 +527,17 @@ class MorningRoutineCard extends LitElement {
     }
 
     _renderTimer() {
-        const timeData = this._getTimeUntilSchool();
-        const timerColor = this._getTimerColor(timeData.total);
+        const cfg = this._config;
+        const showTimer = cfg.show_timer, showWeather = cfg.show_weather, announce = cfg.announce;
+        if (!showTimer && !showWeather && announce === 'none') return html``;
+        const timeData = showTimer ? this._getTimeUntilSchool() : null;
+        const timerColor = showTimer ? this._getTimerColor(timeData.total) : '';
 
         return html`
             <div class="timer-section">
+                ${showTimer || showWeather ? html`
                 <div class="timer-weather-row">
+                    ${showTimer ? html`
                     <div class="global-timer" style="background-color: ${timerColor}">
                         ${timeData.total > 0 ? html`
                             <ha-icon icon="mdi:clock-outline"></ha-icon>
@@ -536,9 +546,16 @@ class MorningRoutineCard extends LitElement {
                             <ha-icon icon="mdi:school"></ha-icon>
                             <span class="global-timer-text">Hora da escola!</span>
                         `}
-                    </div>
-                    ${this._renderWeather()}
-                </div>
+                    </div>` : ''}
+                    ${showWeather ? this._renderWeather() : ''}
+                </div>` : ''}
+                ${announce === 'complete' ? html`
+                <div class="announcement-buttons">
+                    <button class="announcement-button" @click=${this._announceTimeWithActivities} title="Anunciar tempo, meteorologia e atividades">
+                        <ha-icon icon="mdi:bullhorn-outline"></ha-icon>
+                        <span>Anunciar a manhã</span>
+                    </button>
+                </div>` : announce === 'all' ? html`
                 <div class="announcement-buttons">
                     <button class="announcement-button" @click=${this._announceTimeRemaining} title="Anunciar tempo restante">
                         <ha-icon icon="mdi:clock-alert"></ha-icon>
@@ -552,7 +569,7 @@ class MorningRoutineCard extends LitElement {
                         <ha-icon icon="mdi:calendar-star"></ha-icon>
                         <span>Completo</span>
                     </button>
-                </div>
+                </div>` : ''}
             </div>
         `;
     }
@@ -3102,7 +3119,7 @@ window.customCards.push({
 });
 
 console.info(
-    `%c MORNING-ROUTINE-CARD %c ${CARD_VERSION} - Uncropped photo preview `,
+    `%c MORNING-ROUTINE-CARD %c ${CARD_VERSION} - Header options `,
     "color: white; font-weight: bold; background: #4CAF50",
     "color: white; font-weight: bold; background: #2196F3"
 );

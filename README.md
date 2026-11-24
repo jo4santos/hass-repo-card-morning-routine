@@ -93,6 +93,9 @@ games:               # optional - "Jogos" button next to "Ver Recompensa"
 | `show_progress` | boolean | `true` | Show progress rings in headers |
 | `compact` | boolean | `false` | Use compact grid layout |
 | `games` | object or string | none | Optional games button (v2.11.1+). An object (below) or just the URL as a string |
+| `show_timer` | boolean | `true` | Show the "Tempo até à escola" countdown (v2.12.0+) |
+| `show_weather` | boolean | `true` | Show the weather block in the header (v2.12.0+) |
+| `announce` | string | `all` | Announcement buttons: `all` (three buttons), `complete` (one button: time, weather and activities) or `none` (v2.12.0+) |
 | `games.url` | string | none | Page opened in the full-screen frame (`http`/`https`; the site must allow being embedded) |
 | `games.label` | string | `Jogos` | Button text (also the title of the frame) |
 | `games.icon` | string | `mdi:gamepad-variant-outline` | Button icon |
