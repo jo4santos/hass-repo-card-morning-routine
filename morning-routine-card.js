@@ -1,11 +1,12 @@
 import { LitElement, html, css } from "https://cdn.jsdelivr.net/gh/lit/dist@2/all/lit-all.min.js";
 
-// Morning Routine Card v2.12.0 - Header options: show_timer, show_weather, announce ('all' | 'complete' | 'none')
+// Morning Routine Card v2.13.0 - header_style: 'avatar' (avatar with the progress ring, today's agenda chips, tools on the right) and agenda
+// v2.12.0 - Header options: show_timer, show_weather, announce ('all' | 'complete' | 'none')
 // v2.11.2 - Photo preview shows the whole camera frame (no crop) in a larger dialog
 // v2.11.0 - Reward image generated from the photo, "medalha do dia" fallback and streak
 // (needs the Morning Routine integration v2.13.0+ for the new reward type and the streak; older versions keep working)
 
-const CARD_VERSION = "2.12.0";
+const CARD_VERSION = "2.13.0";
 
 // ---------------------------------------------------------------------------
 // Games: full-screen frame
@@ -306,6 +307,14 @@ class MorningRoutineCard extends LitElement {
         this._config.show_timer = config.show_timer !== false;
         this._config.show_weather = config.show_weather !== false;
         this._config.announce = ['all', 'complete', 'none'].includes(config.announce) ? config.announce : 'all';
+        // v2.13.0: header_style 'avatar' (avatar with the progress ring, today's agenda, tools on the right)
+        // and agenda: { calendars: [...] } + a "key" per child (the letter(s) before the event title: "D - Natação")
+        this._config.header_style = config.header_style === 'avatar' ? 'avatar' : 'classic';
+        const agenda = config.agenda && Array.isArray(config.agenda.calendars) ? config.agenda : null;
+        this._agendaCalendars = agenda ? agenda.calendars.map(c => (typeof c === 'string' ? c : c && c.entity)).filter(Boolean) : [];
+        this._agendaRefresh = Math.max(1, Number(agenda && agenda.refresh_minutes) || 5) * 60000;
+        this._agendaEvents = null;
+        if (this._agendaInterval) { clearInterval(this._agendaInterval); this._agendaInterval = null; }
         this._games = this._parseGamesConfig(config);
 
         console.log("Morning Routine Card configured for entities:", config.children.map(c => c.entity));
@@ -315,6 +324,10 @@ class MorningRoutineCard extends LitElement {
         super.disconnectedCallback();
         if (this._timerInterval) {
             clearInterval(this._timerInterval);
+        }
+        if (this._agendaInterval) {
+            clearInterval(this._agendaInterval);
+            this._agendaInterval = null;
         }
         // The games frame lives in document.body: do not leave it behind
         if (activeGamesOverlay && activeGamesOverlay.owner === this) {
@@ -465,6 +478,7 @@ class MorningRoutineCard extends LitElement {
 
     _updateChildrenData() {
         if (!this._hass || !this._config) return;
+        this._ensureAgenda();
 
         this._children = this._config.children.map(childConfig => {
             const entity = this._hass.states[childConfig.entity];
@@ -696,7 +710,7 @@ class MorningRoutineCard extends LitElement {
 
         return html`
             <div class="child-section" style="${sectionStyle}">
-                ${this._config.show_progress ? this._renderHeader(child) : ''}
+                ${this._config.show_progress ? (this._config.header_style === 'avatar' ? this._renderAvatarHeader(child) : this._renderHeader(child)) : ''}
 
                 <div class="activities-grid ${this._config.compact ? 'compact' : ''}">
                     ${child.activities.map(activity => this._renderActivity(child, activity))}
@@ -781,6 +795,102 @@ class MorningRoutineCard extends LitElement {
 
     _formatStreak(days) {
         return days === 1 ? '1 dia seguido' : `${days} dias seguidos`;
+    }
+
+    // ---- v2.13.0: avatar header with today's agenda ----
+    _ensureAgenda() {
+        if (!this._agendaCalendars || !this._agendaCalendars.length || this._agendaInterval || !this.isConnected) return;
+        this._fetchAgenda();
+        this._agendaInterval = setInterval(() => this._fetchAgenda(), this._agendaRefresh);
+    }
+
+    async _fetchAgenda() {
+        const hass = this._hass;
+        if (!hass || !hass.callApi) return;
+        const start = new Date(); start.setHours(0, 0, 0, 0);
+        const end = new Date(start.getTime() + 86400000);
+        const query = `?start=${encodeURIComponent(start.toISOString())}&end=${encodeURIComponent(end.toISOString())}`;
+        const results = await Promise.all(this._agendaCalendars.map(cal =>
+            hass.callApi('GET', `calendars/${cal}${query}`).then(r => r || [], () => null)));
+        if (results.every(r => r === null)) return;
+        const seen = new Set(), events = [];
+        for (const list of results) {
+            for (const ev of list || []) {
+                const s = ev.start || {}, e = ev.end || {}, allDay = !s.dateTime && !!s.date;
+                const id = `${ev.summary}|${s.dateTime || s.date}|${e.dateTime || e.date}`;
+                if (seen.has(id)) continue;
+                seen.add(id);
+                const m = String(ev.summary || '').match(/^([A-Za-z]{1,4})\s*[-–:]\s*(.+)$/);
+                if (!m) continue;
+                events.push({
+                    who: m[1].toUpperCase(),
+                    title: m[2].charAt(0).toUpperCase() + m[2].slice(1),
+                    allDay,
+                    start: allDay ? null : new Date(s.dateTime),
+                    end: allDay ? null : new Date(e.dateTime),
+                });
+            }
+        }
+        this._agendaEvents = events;
+        this.requestUpdate();
+    }
+
+    _agendaIcon(title) {
+        const icons = [[/nata[cç][aã]o|piscina/i, 'mdi:swim'], [/flauta|m[uú]sica|piano|guitarra|coro/i, 'mdi:music'], [/taekwondo|karat|judo/i, 'mdi:karate'], [/futebol|futsal/i, 'mdi:soccer'], [/padel|t[eé]nis/i, 'mdi:tennis'], [/dan[cç]a|ballet/i, 'mdi:dance-ballroom'], [/gin[aá]stica/i, 'mdi:gymnastics'], [/educa[cç][aã]o f[ií]sica|desporto/i, 'mdi:run'], [/dentista/i, 'mdi:tooth-outline'], [/m[eé]dic|consulta|pediatra|vacina/i, 'mdi:stethoscope'], [/anivers[aá]rio|festa/i, 'mdi:cake-variant-outline'], [/teste|exame|ficha/i, 'mdi:pencil-outline'], [/computador|inform[aá]tica/i, 'mdi:laptop'], [/av[oó]s|av[oó]\b/i, 'mdi:heart-outline'], [/escola|aula|visita de estudo/i, 'mdi:school-outline'], [/levar|trazer/i, 'mdi:bag-personal-outline']];
+        for (const [re, icon] of icons) if (re.test(title)) return icon;
+        return 'mdi:star-outline';
+    }
+
+    _childAgenda(child) {
+        const key = String(child.key || '').toUpperCase();
+        if (!key || !this._agendaEvents) return [];
+        const now = new Date(), pad = n => String(n).padStart(2, '0');
+        return this._agendaEvents
+            .filter(ev => ev.who.includes(key) && (ev.allDay || ev.end > now))
+            .map(ev => ({
+                title: ev.title,
+                time: ev.allDay ? 'Todo o dia' : `${pad(ev.start.getHours())}:${pad(ev.start.getMinutes())}`,
+                order: ev.allDay ? '0' : `1${pad(ev.start.getHours())}${pad(ev.start.getMinutes())}`,
+                now: !ev.allDay && ev.start <= now,
+            }))
+            .sort((a, b) => a.order.localeCompare(b.order));
+    }
+
+    _renderAvatarHeader(child) {
+        const color = child.color || '#8aadf4';
+        const r = 29, len = 2 * Math.PI * r;
+        const progress = Math.max(0, Math.min(100, Number(child.progress) || 0));
+        const events = this._childAgenda(child);
+        return html`
+            <div class="child-header avatar-header">
+                <div class="avatar" role="img" aria-label="${child.name}: ${progress}% da rotina">
+                    <svg viewBox="0 0 68 68" width="68" height="68" aria-hidden="true">
+                        <circle cx="34" cy="34" r="${r}" fill="none" stroke="var(--card-background-color, #e0e0e0)" stroke-width="6"></circle>
+                        <circle class="avatar-ring" cx="34" cy="34" r="${r}" fill="none" stroke="${color}" stroke-width="6" stroke-linecap="round"
+                            style="stroke-dasharray: ${len}; stroke-dashoffset: ${len * (1 - progress / 100)}"></circle>
+                    </svg>
+                    <span class="avatar-initial" style="background: ${color}">${String(child.name || '?').charAt(0)}</span>
+                    <span class="avatar-pct">${progress}%</span>
+                </div>
+                <div class="agenda-chips">
+                    ${events.length ? events.map(ev => html`
+                        <span class="agenda-chip ${ev.now ? 'now' : ''}" style="--chip-color: ${color}">
+                            <span class="agenda-chip-icon"><ha-icon icon="${this._agendaIcon(ev.title)}"></ha-icon></span>
+                            <span class="agenda-chip-text"><b>${ev.title}</b><span>${ev.now ? 'Agora · ' : ''}${ev.time}</span></span>
+                        </span>
+                    `) : (this._agendaCalendars.length ? '' : html`<h2>${child.name}</h2>`)}
+                </div>
+                <div class="header-tools">
+                    ${this._renderStreakChip(child)}
+                    <mwc-icon-button class="history-button" title="Histórico" @click=${() => this._showHistoryModal(child)}>
+                        <ha-icon icon="mdi:history"></ha-icon>
+                    </mwc-icon-button>
+                    <mwc-icon-button class="reset-button" title="Recomeçar" @click=${() => this._showResetConfirmation(child)}>
+                        <ha-icon icon="mdi:restart"></ha-icon>
+                    </mwc-icon-button>
+                </div>
+            </div>
+        `;
     }
 
     _renderStreakChip(child) {
@@ -3009,6 +3119,21 @@ class MorningRoutineCard extends LitElement {
            Reward from the photo (v2.11.0): generated image, waiting state, "medalha do dia", streak.
            Same sober palette as the unified style; all motion stops with prefers-reduced-motion.
            ------------------------------------------------------------------ */
+        .avatar-header { gap: 14px; justify-content: flex-start; margin-bottom: 12px; }
+        .avatar { position: relative; flex: none; width: 68px; height: 68px; margin-bottom: 6px; }
+        .avatar svg { display: block; transform: rotate(-90deg); }
+        .avatar-ring { transition: stroke-dashoffset 0.4s ease; }
+        .avatar-initial { position: absolute; inset: 9px; border-radius: 50%; display: grid; place-items: center; color: #181926; font-size: 24px; font-weight: 800; }
+        .avatar-pct { position: absolute; left: 50%; bottom: -8px; transform: translateX(-50%); padding: 1px 8px; border-radius: 999px; background: var(--card-background-color); color: var(--primary-text-color); font-size: 12px; font-weight: 800; line-height: 16px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+        .agenda-chips { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+        .agenda-chip { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; max-width: 100%; box-sizing: border-box; padding: 4px 14px 4px 5px; border-radius: 999px; background: var(--card-background-color); color: var(--primary-text-color); }
+        .agenda-chip.now { background: var(--chip-color); color: #181926; }
+        .agenda-chip-icon { flex: none; width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; background: color-mix(in srgb, var(--chip-color) 22%, transparent); color: var(--chip-color); --mdc-icon-size: 20px; }
+        .agenda-chip.now .agenda-chip-icon { background: rgba(255, 255, 255, 0.4); color: #181926; }
+        .agenda-chip-text { min-width: 0; display: flex; flex-direction: column; line-height: 1.15; }
+        .agenda-chip-text b { font-size: 15px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .agenda-chip-text span { font-size: 12px; font-weight: 600; opacity: 0.75; font-variant-numeric: tabular-nums; }
+        .header-tools { flex: none; display: flex; align-items: center; gap: 2px; margin-left: auto; opacity: 0.75; }
         .streak-chip { display: inline-flex; align-items: center; gap: 2px; height: 28px; padding: 0 9px 0 6px; border-radius: 999px; background: var(--card-background-color); color: var(--primary-text-color); font-size: 14px; font-weight: 600; line-height: 1; font-variant-numeric: tabular-nums; white-space: nowrap; }
         .streak-chip ha-icon { --mdc-icon-size: 16px; width: 16px; height: 16px; display: flex; color: #f5a97f; }
 
@@ -3119,7 +3244,7 @@ window.customCards.push({
 });
 
 console.info(
-    `%c MORNING-ROUTINE-CARD %c ${CARD_VERSION} - Header options `,
+    `%c MORNING-ROUTINE-CARD %c ${CARD_VERSION} - Avatar header with agenda `,
     "color: white; font-weight: bold; background: #4CAF50",
     "color: white; font-weight: bold; background: #2196F3"
 );
