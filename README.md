@@ -98,6 +98,7 @@ games:               # optional - "Jogos" button next to "Ver Recompensa"
 | `announce` | string | `all` | Announcement buttons: `all` (three buttons), `complete` (one button: time, weather and activities) or `none` (v2.12.0+) |
 | `header_style` | string | `classic` | `avatar` = avatar with the progress ring and percentage, today's agenda and the history/reset buttons on the right (v2.13.0+) |
 | `agenda` | object | none | `{ calendars: [calendar.*] }`: with `header_style: avatar`, shows each child's events of today. An event belongs to the children whose `key` is in the letters before its title (`D - Natação`, `LD: Taekwondo`). Needs a `key` per child (v2.13.0+) |
+| `todo` | object | none | `{ entity: todo.* }`: with `header_style: avatar`, shows next to the agenda the open items of that list whose name starts with the child's `todo_prefix` (e.g. `Escola Duarte -`), due today, overdue or without a date. Tapping one marks it as done (v2.15.0+) |
 | `games.url` | string | none | Page opened in the full-screen frame (`http`/`https`; the site must allow being embedded) |
 | `games.label` | string | `Jogos` | Button text (also the title of the frame) |
 | `games.icon` | string | `mdi:gamepad-variant-outline` | Button icon |

@@ -1,6 +1,7 @@
 import { LitElement, html, css } from "https://cdn.jsdelivr.net/gh/lit/dist@2/all/lit-all.min.js";
 
-// Morning Routine Card v2.14.3 - avatar style: gap between the children's cards follows the dashboard grid
+// Morning Routine Card v2.15.0 - todo + todo_prefix: things to take (open todo items with the child's prefix) next to the agenda
+// v2.14.3 - avatar style: gap between the children's cards follows the dashboard grid
 // v2.14.2 - avatar style: sections use the theme's card border and radius
 // v2.14.1 - avatar style: sections are the cards, avatar always shows the initial, round tool buttons, lower tiles
 // v2.13.1 - header_style: 'avatar' (avatar with the progress ring, today's agenda chips, tools on the right) and agenda
@@ -9,7 +10,7 @@ import { LitElement, html, css } from "https://cdn.jsdelivr.net/gh/lit/dist@2/al
 // v2.11.0 - Reward image generated from the photo, "medalha do dia" fallback and streak
 // (needs the Morning Routine integration v2.13.0+ for the new reward type and the streak; older versions keep working)
 
-const CARD_VERSION = "2.14.3";
+const CARD_VERSION = "2.15.0";
 
 // ---------------------------------------------------------------------------
 // Games: full-screen frame
@@ -318,6 +319,11 @@ class MorningRoutineCard extends LitElement {
         this._agendaRefresh = Math.max(1, Number(agenda && agenda.refresh_minutes) || 5) * 60000;
         this._agendaEvents = null;
         if (this._agendaInterval) { clearInterval(this._agendaInterval); this._agendaInterval = null; }
+        // v2.15.0: todo: { entity: 'todo.x' } + a "todo_prefix" per child ("Escola Duarte -"): the open items of that list
+        // whose name starts with the prefix (due today, overdue or without date) show next to the agenda; tap = done
+        this._todoEntity = config.todo && config.todo.entity ? config.todo.entity : null;
+        this._todoItems = null;
+        this._stopTodo();
         this._games = this._parseGamesConfig(config);
 
         console.log("Morning Routine Card configured for entities:", config.children.map(c => c.entity));
@@ -326,6 +332,7 @@ class MorningRoutineCard extends LitElement {
     connectedCallback() {
         super.connectedCallback();
         this._ensureAgenda();
+        this._ensureTodo();
     }
 
     disconnectedCallback() {
@@ -337,6 +344,7 @@ class MorningRoutineCard extends LitElement {
             clearInterval(this._agendaInterval);
             this._agendaInterval = null;
         }
+        this._stopTodo();
         // The games frame lives in document.body: do not leave it behind
         if (activeGamesOverlay && activeGamesOverlay.owner === this) {
             closeGamesOverlay({ restoreFocus: false });
@@ -437,6 +445,7 @@ class MorningRoutineCard extends LitElement {
         const oldHass = this._hass;
         this._hass = hass;
         this._ensureAgenda();
+        this._ensureTodo();
 
         // Check if any of our entities have actually changed
         if (oldHass && this._config) {
@@ -865,11 +874,51 @@ class MorningRoutineCard extends LitElement {
             .sort((a, b) => a.order.localeCompare(b.order));
     }
 
+    // ---- v2.15.0: things to take (todo items with the child's prefix) ----
+    _stopTodo() {
+        const unsub = this._todoUnsub;
+        this._todoUnsub = null;
+        if (unsub) Promise.resolve(unsub).then(u => { if (typeof u === 'function') u(); }).catch(() => {});
+    }
+
+    _ensureTodo() {
+        if (!this._todoEntity || this._todoUnsub || !this._hass || !this._hass.connection || !this.isConnected) return;
+        this._todoUnsub = this._hass.connection.subscribeMessage(
+            (msg) => { this._todoItems = (msg && msg.items) || []; this.requestUpdate(); },
+            { type: 'todo/item/subscribe', entity_id: this._todoEntity });
+        Promise.resolve(this._todoUnsub).catch(() => { this._todoUnsub = null; });
+    }
+
+    _childTodos(child) {
+        const prefix = String(child.todo_prefix || '').trim().replace(/[\s\-–:]+$/, '').toLowerCase();
+        if (!prefix || !this._todoItems) return [];
+        const d = new Date(), today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        const out = [];
+        for (const item of this._todoItems) {
+            const summary = String(item.summary || '').trim();
+            if (item.status !== 'needs_action' || !summary.toLowerCase().startsWith(prefix)) continue;
+            if (item.due && String(item.due).slice(0, 10) > today) continue;
+            const name = summary.slice(prefix.length).replace(/^[\s\-–:]+/, '');
+            if (!name) continue;
+            out.push({ uid: item.uid, name: name.charAt(0).toUpperCase() + name.slice(1) });
+        }
+        return out;
+    }
+
+    _completeTodo(item) {
+        if (!this._hass || !this._todoEntity) return;
+        this._todoItems = (this._todoItems || []).filter(x => x.uid !== item.uid);
+        this.requestUpdate();
+        this._hass.callService('todo', 'update_item', { item: item.uid, status: 'completed' }, { entity_id: this._todoEntity })
+            .catch(() => { this._stopTodo(); this._ensureTodo(); });
+    }
+
     _renderAvatarHeader(child) {
         const color = child.color || '#8aadf4';
         const r = 29, len = 2 * Math.PI * r;
         const progress = Math.max(0, Math.min(100, Number(child.progress) || 0));
         const events = this._childAgenda(child);
+        const todos = this._childTodos(child);
         return html`
             <div class="child-header avatar-header">
                 <div class="avatar" role="img" aria-label="${child.name}: ${progress}% da rotina">
@@ -882,12 +931,20 @@ class MorningRoutineCard extends LitElement {
                     <span class="avatar-pct">${progress}%</span>
                 </div>
                 <div class="agenda-chips">
-                    ${events.length ? events.map(ev => html`
+                    ${todos.map(t => html`
+                        <button class="agenda-chip todo-chip" type="button" style="--chip-color: ${color}" title="Tocar quando estiver na mochila"
+                                aria-label="Levar: ${t.name}. Tocar para marcar como feito" @click=${() => this._completeTodo(t)}>
+                            <span class="agenda-chip-icon"><ha-icon icon="mdi:bag-personal"></ha-icon></span>
+                            <span class="agenda-chip-text"><b>${t.name}</b><span>Levar</span></span>
+                        </button>
+                    `)}
+                    ${events.map(ev => html`
                         <span class="agenda-chip ${ev.now ? 'now' : ''}" style="--chip-color: ${color}">
                             <span class="agenda-chip-icon"><ha-icon icon="${this._agendaIcon(ev.title)}"></ha-icon></span>
                             <span class="agenda-chip-text"><b>${ev.title}</b><span>${ev.now ? 'Agora · ' : ''}${ev.time}</span></span>
                         </span>
-                    `) : (this._agendaCalendars.length ? '' : html`<h2>${child.name}</h2>`)}
+                    `)}
+                    ${!events.length && !todos.length && !this._agendaCalendars.length && !this._todoEntity ? html`<h2>${child.name}</h2>` : ''}
                 </div>
                 <div class="header-tools">
                     ${this._renderStreakChip(child)}
@@ -3142,6 +3199,10 @@ class MorningRoutineCard extends LitElement {
         .agenda-chip-text { min-width: 0; display: flex; flex-direction: column; line-height: 1.15; }
         .agenda-chip-text b { font-size: 15px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .agenda-chip-text span { font-size: 12px; font-weight: 600; opacity: 0.75; font-variant-numeric: tabular-nums; }
+        button.agenda-chip { border: 0; font: inherit; text-align: left; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+        .avatar-style .agenda-chip.todo-chip, .agenda-chip.todo-chip { background: #eed49f; color: #181926; }
+        .agenda-chip.todo-chip .agenda-chip-icon { background: rgba(255, 255, 255, 0.45); color: #181926; }
+        .agenda-chip.todo-chip:active { opacity: 0.7; }
         .header-tools { flex: none; display: flex; align-items: center; gap: 8px; margin-left: auto; }
         .tool-btn { flex: none; width: 44px; height: 44px; padding: 0; border: 0; border-radius: 50%; display: grid; place-items: center; background: var(--secondary-background-color); color: var(--secondary-text-color); cursor: pointer; --mdc-icon-size: 22px; -webkit-tap-highlight-color: transparent; }
         .tool-btn:active { opacity: 0.7; }
