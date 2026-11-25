@@ -1,6 +1,7 @@
 import { LitElement, html, css } from "https://cdn.jsdelivr.net/gh/lit/dist@2/all/lit-all.min.js";
 
-// Morning Routine Card v2.15.0 - todo + todo_prefix: things to take (open todo items with the child's prefix) next to the agenda
+// Morning Routine Card v2.15.1 - the things-to-take chip is always there ("Nada para levar" when empty)
+// v2.15.0 - todo + todo_prefix: things to take (open todo items with the child's prefix) next to the agenda
 // v2.14.3 - avatar style: gap between the children's cards follows the dashboard grid
 // v2.14.2 - avatar style: sections use the theme's card border and radius
 // v2.14.1 - avatar style: sections are the cards, avatar always shows the initial, round tool buttons, lower tiles
@@ -10,7 +11,7 @@ import { LitElement, html, css } from "https://cdn.jsdelivr.net/gh/lit/dist@2/al
 // v2.11.0 - Reward image generated from the photo, "medalha do dia" fallback and streak
 // (needs the Morning Routine integration v2.13.0+ for the new reward type and the streak; older versions keep working)
 
-const CARD_VERSION = "2.15.0";
+const CARD_VERSION = "2.15.1";
 
 // ---------------------------------------------------------------------------
 // Games: full-screen frame
@@ -931,6 +932,12 @@ class MorningRoutineCard extends LitElement {
                     <span class="avatar-pct">${progress}%</span>
                 </div>
                 <div class="agenda-chips">
+                    ${this._todoEntity && child.todo_prefix && !todos.length ? html`
+                        <span class="agenda-chip todo-none" style="--chip-color: ${color}">
+                            <span class="agenda-chip-icon"><ha-icon icon="mdi:bag-personal-outline"></ha-icon></span>
+                            <span class="agenda-chip-text"><b>${this._todoItems ? 'Nada para levar' : 'A carregar…'}</b><span>Levar</span></span>
+                        </span>
+                    ` : ''}
                     ${todos.map(t => html`
                         <button class="agenda-chip todo-chip" type="button" style="--chip-color: ${color}" title="Tocar quando estiver na mochila"
                                 aria-label="Levar: ${t.name}. Tocar para marcar como feito" @click=${() => this._completeTodo(t)}>
@@ -3203,6 +3210,8 @@ class MorningRoutineCard extends LitElement {
         .avatar-style .agenda-chip.todo-chip, .agenda-chip.todo-chip { background: #eed49f; color: #181926; }
         .agenda-chip.todo-chip .agenda-chip-icon { background: rgba(255, 255, 255, 0.45); color: #181926; }
         .agenda-chip.todo-chip:active { opacity: 0.7; }
+        .avatar-style .agenda-chip.todo-none, .agenda-chip.todo-none { background: none; border: 2px dashed color-mix(in srgb, var(--chip-color) 45%, transparent); color: var(--secondary-text-color); }
+        .agenda-chip.todo-none .agenda-chip-icon { background: none; color: var(--secondary-text-color); }
         .header-tools { flex: none; display: flex; align-items: center; gap: 8px; margin-left: auto; }
         .tool-btn { flex: none; width: 44px; height: 44px; padding: 0; border: 0; border-radius: 50%; display: grid; place-items: center; background: var(--secondary-background-color); color: var(--secondary-text-color); cursor: pointer; --mdc-icon-size: 22px; -webkit-tap-highlight-color: transparent; }
         .tool-btn:active { opacity: 0.7; }
